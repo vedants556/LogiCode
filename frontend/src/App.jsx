@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./App.css";
-import { Link, Routes, Route } from "react-router-dom";
+import { Link, Routes, Route, Navigate } from "react-router-dom";
 import Home from "./pages/Home";
 import Problem from "./pages/Problem";
 import AddQuestion from "./pages/AddQuestion";
@@ -12,24 +12,36 @@ import LandingPage from "./pages/LandingPage";
 import Profile from "./pages/Profile";
 import Registration from "./pages/Registration";
 
-
-
 function App() {
   const userid = 1;
 
   return (
     <>
       <Routes>
-        <Route path="profile" element={<Profile/>} ></Route>
+        <Route path="profile" element={<Profile />}></Route>
         <Route path={"/home"} element={<Home />} />
         <Route path="/problem/:qid" element={<Problem />} />
         <Route path="/Add" element={<AddQuestion />} />
         <Route path="/problems/:type" element={<ProblemList />} />
         <Route path="/adminroadmap" element={<AdminRoadmap />} />
-        <Route path="/leaderboard" element={<LeaderBoard/>}/>
-        <Route path="/logsign" element={<Loginsignup/>}></Route>
-        <Route path="/" element={<LandingPage/>}></Route>
-        <Route path="/Registration" element={<Registration/>}></Route>
+        <Route path="/leaderboard" element={<LeaderBoard />} />
+        <Route
+          path="/login"
+          element={<Registration initialMode="login" />}
+        ></Route>
+        <Route
+          path="/signup"
+          element={<Registration initialMode="signup" />}
+        ></Route>
+        <Route
+          path="/Registration"
+          element={<Registration initialMode="signup" />}
+        ></Route>
+        <Route
+          path="/logsign"
+          element={<Navigate to="/login" replace />}
+        ></Route>
+        <Route path="/" element={<LandingPage />}></Route>
       </Routes>
     </>
   );

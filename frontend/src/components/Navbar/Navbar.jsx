@@ -58,12 +58,12 @@ const Navbar = () => {
           </div>
           <div className="auth-buttons hideonPhone">
             {!islogged && (
-              <Link to={"/Registration"}>
+              <Link to={"/login"}>
                 <button className="button">Login</button>
               </Link>
             )}
             {!islogged && (
-              <Link to={"/Registration"}>
+              <Link to={"/signup"}>
                 <button className="button">SignUp</button>
               </Link>
             )}
@@ -106,7 +106,12 @@ const Navbar = () => {
 
             {!islogged && (
               <li>
-                <Link to={"/logsign"}>login/signup</Link>
+                <Link to={"/login"}>Login</Link>
+              </li>
+            )}
+            {!islogged && (
+              <li>
+                <Link to={"/signup"}>Sign Up</Link>
               </li>
             )}
           </ul>
