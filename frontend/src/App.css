@@ -1,0 +1,584 @@
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
+
+body {
+  margin: 0px;
+  background-color: rgb(59, 59, 59);
+}
+
+* {
+  font-family: "Fira Code", monospace;
+  font-style: normal;
+}
+
+a {
+  text-decoration: none;
+  color: white;
+}
+
+button {
+  cursor: pointer;
+}
+
+.problemPage {
+  background-color: aqua;
+  display: flex;
+}
+
+.executeButton {
+  border: solid 2px rgb(255, 255, 255);
+  border-radius: 10px;
+  padding: 14px;
+  margin: 10px;
+  cursor: pointer;
+  color: white;
+  background-color: rgb(71, 71, 71);
+}
+
+.editorBox {
+  border: solid 1px;
+  width: 100%;
+  position: absolute;
+  right: 0px;
+  width: 900px;
+  margin: 10px;
+}
+
+.problemContainer {
+  width: 80%;
+}
+
+.outputBox {
+  padding-left: 20px;
+  position: absolute;
+  z-index: 999;
+  background-color: rgb(59, 59, 59);
+  height: max-content;
+  width: 60%;
+  right: 0px;
+  bottom: 0px;
+  color: white;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: scroll;
+}
+
+.descriptionBox {
+  background-color: rgb(43, 43, 43);
+  position: absolute;
+  padding: 20px;
+  top: 0px;
+  bottom: 0px;
+  width: 40%;
+  color: white;
+  overflow: scroll;
+}
+
+.airesp {
+  width: 400px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.addQuestionForm {
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+  color: white;
+}
+
+.addQuestionText {
+  margin: 3px;
+}
+
+.testcaseRow {
+  display: flex;
+}
+
+.tcTerminal {
+  padding: 10px;
+  background-color: rgb(44, 44, 44);
+  margin-left: 10px;
+}
+
+.testCases {
+  display: flex;
+  flex-direction: column;
+  border: solid 2px;
+  width: 50%;
+  padding: 10px;
+}
+.questionButtons {
+  text-decoration: none;
+  color: white;
+  background-color: rgb(40, 40, 40);
+  padding: 12px;
+  display: flex;
+  margin: 10px;
+}
+
+.submitQuestion {
+  width: 160px;
+  padding: 15px;
+}
+
+.logicodeforms {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  background-color: antiquewhite;
+  padding: 10px;
+}
+
+.resultWindow {
+  border-style: solid;
+  border-width: 3px;
+  padding: 10px;
+}
+
+.tcRoll {
+  position: absolute;
+  top: 1000px;
+  width: 47%;
+  right: 0px;
+  height: 700px;
+  overflow-y: scroll;
+}
+
+.tcs {
+  padding: 10px;
+  background-color: rgb(86, 86, 86);
+  margin: 10px;
+  margin-left: 0px;
+}
+
+.deletetc {
+  background-color: rgb(164, 84, 84);
+  color: white;
+}
+
+.selectCheckType {
+  display: flex;
+  padding: 20px;
+}
+
+.descToggleButtons {
+  padding: 8px;
+  width: 66px;
+  background-color: rgb(63, 63, 63);
+  border: solid 1px;
+  color: white;
+}
+
+.lbnames {
+  background-color: rgb(102, 102, 102);
+  margin: 10px;
+  padding: 10px;
+}
+
+.leaderRoll :nth-child(1) {
+  background-color: rgb(227, 204, 72);
+}
+
+.leaderRoll :nth-child(2) {
+  background-color: rgb(180, 180, 180);
+}
+
+.leaderRoll :nth-child(3) {
+  background-color: rgb(163, 114, 67);
+}
+
+.leaderRoll {
+  border: 3px solid lightgreen;
+  border-radius: 10px;
+  margin: 20px;
+}
+
+.homepagebuttons {
+  color: white;
+  text-decoration: none;
+  padding: 10px;
+  background-color: gray;
+  display: inline;
+  margin: 2px;
+  border-radius: 10px;
+  height: 160px;
+  width: 33%;
+  position: relative;
+  margin-left: 20px;
+}
+
+.dashboardtop {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.warning {
+  width: 100%;
+  background-color: red;
+  opacity: 0.3;
+  padding: 10px;
+  color: azure;
+}
+
+.terminal {
+  background-color: black;
+  padding: 10px;
+  max-height: 200px;
+  overflow-y: scroll;
+  border-radius: 8px;
+}
+
+.aibutton {
+  padding: 10px;
+  background-color: blueviolet;
+  border-radius: 10px;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+.airesponseTab {
+  background-color: rgb(109, 101, 109);
+  margin: 2px;
+  margin-top: 20px;
+  border-radius: 10px;
+  color: rgb(255, 255, 255);
+  height: max-content;
+  padding: 16px;
+}
+
+.airesponseTab pre {
+  background-color: rgb(42, 42, 42);
+  padding: 14px;
+  border-radius: 10px;
+  overflow-x: scroll;
+}
+
+.descriptionBox pre {
+  background-color: rgb(37, 37, 37);
+  padding: 14px;
+  border-radius: 10px;
+  overflow-x: scroll;
+}
+
+.profile-sidebar {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  width: 20%;
+}
+
+.profileInfo {
+  background-color: gray;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.profile-sidebar button {
+  padding: 20px;
+}
+
+.profilepage {
+  display: flex;
+}
+
+.rightcolumn {
+  padding: 30px;
+  padding-top: 0px;
+}
+
+.tick {
+  color: rgb(0, 185, 15) !important;
+}
+
+.highlighted {
+  border: 2px solid rgb(135, 250, 143);
+}
+
+.lb {
+  display: flex;
+  flex-direction: column;
+}
+
+.lbheader {
+  text-align: center;
+  border: 2px solid lightgreen;
+  border-radius: 10px;
+  align-self: center;
+  width: 12em;
+  padding: 6px;
+}
+
+.rank {
+  width: 100%;
+  padding-top: 20px;
+  text-align: center;
+}
+
+.statsspan {
+  background-color: greenyellow;
+}
+
+.dtypeButtons {
+  color: black;
+  padding: 10px;
+  background-color: gray;
+  height: 100px;
+  width: 100%;
+  margin: 10px;
+  border-radius: 10px;
+  font-size: 1.3em;
+}
+
+.userchart {
+  background-color: rgb(156, 156, 156);
+  color: black;
+  position: fixed;
+  height: 300px;
+  width: 300px;
+  border-radius: 50%;
+  right: 10px;
+  top: 100px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  font-size: 2em;
+  border: 10px solid;
+  border-radius: 50%;
+}
+
+.typeButtonRoll {
+  display: flex;
+  justify-content: space-between;
+}
+
+.chartSection {
+  right: 10px;
+  width: 50%;
+  top: 80px;
+  width: 100%;
+  padding: 10px;
+}
+
+.chartdiv {
+  display: flex;
+  flex-direction: row;
+  overflow-x: scroll;
+}
+
+.statinfo {
+  color: black;
+  background-color: rgb(84, 84, 84);
+  padding: 10px;
+  margin: 10px;
+  width: 200px;
+  border-radius: 10px;
+  border: solid 3px;
+}
+
+.collabSearch {
+  background-color: black;
+  overflow-y: scroll;
+  height: 200px;
+}
+
+.collabSearch div {
+  padding: 6px;
+  margin: 4px;
+}
+
+.testcasecheckbutton {
+  padding: 10px;
+  width: 200px;
+  margin: 10px;
+  background-color: #f7564a;
+  border: none;
+  cursor: pointer;
+}
+
+.uselessroll {
+  margin-top: 40px;
+  background-color: rgb(0, 0, 0);
+  border-radius: 5px;
+  padding: 10px;
+}
+
+.backButton {
+  padding: 10px;
+  background-color: rgb(59, 59, 59);
+  color: white;
+  border-radius: 10px;
+}
+
+.hpbtext {
+  font-size: 1.3em;
+}
+
+.wrapper {
+  width: 200px;
+  height: 200px;
+  margin: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.outer {
+  width: 200px;
+  height: 200px;
+  border: 4px solid rgba(48, 48, 48, 0.736);
+  border-radius: 50%;
+  padding: 16px;
+}
+
+.inner {
+  width: 160px;
+  height: 160px;
+  border: 4px solid rgb(34, 34, 34);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-text {
+  font-size: 1em;
+}
+
+.circlesvg {
+  position: absolute;
+}
+
+circle {
+  fill: none;
+  /* stroke:#ffe840; */
+  stroke-width: 12px;
+  stroke-dasharray: 590;
+  stroke-dashoffset: 290;
+
+  stroke-linecap: round;
+}
+
+.progressbarContainer {
+  height: 70px;
+  border: none;
+  border-radius: 20px;
+  margin-left: 10px;
+  margin-top: 20px;
+}
+
+.innerpb {
+  background-color: #8e8e8e;
+  border-radius: inherit;
+  height: inherit;
+  position: absolute;
+  width: 200px;
+  border: inherit;
+  font-weight: 500;
+}
+
+.innerpb p {
+  color: rgb(0, 0, 0);
+  position: absolute;
+  top: 10px;
+  left: 20px;
+  font-size: 1em;
+}
+
+.outerpb {
+  border: inherit;
+  border-radius: inherit;
+  background-color: rgb(255, 255, 91);
+  position: absolute;
+  width: 20px;
+  height: inherit;
+}
+
+.dashboardheader {
+  margin-left: 20px;
+}
+
+.smallrank {
+  position: absolute;
+  transform: translate(-60px, 40px);
+  font-size: 2em;
+}
+
+.ranktext {
+  position: absolute;
+  transform: translate(170px, -30px);
+  font-size: 6em;
+  font-family: "Trebuchet MS", "Lucida Sans Unicode", "Lucida Grande",
+    "Lucida Sans", Arial, sans-serif;
+}
+
+.deletebanner {
+  position: absolute;
+  background-color: #ff0000;
+  padding: 30px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 999;
+}
+
+.deletebanner button {
+  background-color: black;
+  border: none;
+}
+
+.deleteQuestionContainers {
+  display: grid;
+  grid-template-columns: 500px 100px;
+  margin: 10px;
+}
+
+.deleteQuestionContainers button {
+  background-color: #f7564a;
+  border: none;
+}
+
+.blurbox {
+  position: absolute;
+  width: 100%;
+  height: 200%;
+  z-index: 998;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.deletebanner button {
+  display: inline;
+  padding: 10px;
+  width: 80px;
+  margin: 10px;
+}
+
+.radioButtonSpan {
+  border: 3px solid;
+  padding: 10px;
+  margin: 10px;
+}
+
+@media screen and (max-width: 800px) {
+  .hideOnMobile {
+    display: none;
+  }
+
+  .descriptionBox {
+    width: 20%;
+  }
+
+  .editorBox {
+    overflow-x: scroll;
+    width: 70%;
+  }
+}
