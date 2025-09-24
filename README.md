@@ -52,7 +52,7 @@ The system architecture includes:
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/afayan/logicode.git
+   git clone https://github.com/vedants556/logicode.git
    ```
 
 2. Setup the backend
