@@ -2,16 +2,13 @@ import React, { useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 
 function AddQuestion() {
+  const timerRef = useRef(); // timer in minutes
   const [tc, showTC] = useState(false); //if the user wants check by testcase or not
   const [tcIndex, setTCIndex] = useState(0); //current testcase index
   const [testCases, setTestcases] = useState([]); //array to store testcases
-  const [defaultCode, setDefCode] = useState(
-    "//enter your default code here \n #include<stdio.h>"
-  ); //default code of question
+  const [defaultCode, setDefCode] = useState(""); //default code of question
   const [funcName, setFuncName] = useState(); //function name
-  const [answerCode, setAnsCode] = useState(
-    "//enter your solution code here \n #include<stdio.h>"
-  ); //solution
+  const [answerCode, setAnsCode] = useState(""); //solution
   const [selectedLanguage, setSelectedLanguage] = useState("c"); //selected language
   const [languages, setLanguages] = useState({}); //available languages
 
@@ -26,13 +23,16 @@ function AddQuestion() {
       const response = await fetch("/api/languages");
       const data = await response.json();
       setLanguages(data);
-      // Set default code based on selected language
       if (data[selectedLanguage]) {
         setDefCode(data[selectedLanguage].defaultCode);
         setAnsCode(data[selectedLanguage].defaultCode);
+      } else {
+        setDefCode(data["c"].defaultCode);
+        setAnsCode(data["c"].defaultCode);
       }
     }
     getLanguages();
+    // eslint-disable-next-line
   }, []);
 
   // Handle language change
@@ -71,6 +71,9 @@ function AddQuestion() {
     questionData.desc = desc.current.value;
     questionData.qname = qname.current.value;
     questionData.defaultCode = defaultCode;
+    questionData.timer = timerRef.current
+      ? parseInt(timerRef.current.value)
+      : 0;
 
     tc ? (questionData.checkBy = "testcase") : (questionData.checkBy = "ai");
 
@@ -102,6 +105,15 @@ function AddQuestion() {
   return (
     <>
       <div className="addQuestionForm">
+        <label htmlFor="timer-input">Time Limit (minutes):</label>
+        <input
+          id="timer-input"
+          type="number"
+          min="0"
+          placeholder="Enter time in minutes (0 for no limit)"
+          ref={timerRef}
+          style={{ marginBottom: "12px", width: "200px", padding: "6px" }}
+        />
         <h1>Add question</h1>
         <input
           type="text"
@@ -264,11 +276,21 @@ function AddQuestion() {
 export default AddQuestion;
 
 function AddTestCase(props) {
-  const defaultRunnerCode = `int main(void){
+  // Set default runner code based on language
+  const defaultRunnerCodes = {
+    c: `int main(void){
     //print the output by calling your function
-}`;
-
-  const [code, setCode] = useState(defaultRunnerCode); //code for running testcase
+}`,
+    cpp: `int main() {
+    //print the output by calling your function
+    return 0;
+}`,
+    python: `# Call your function here\nif __name__ == "__main__":\n    pass\n`,
+    java: `public class Main {\n    public static void main(String[] args) {\n        // Call your function here\n    }\n}`,
+  };
+  const [code, setCode] = useState(
+    defaultRunnerCodes[props.selectedLanguage] || defaultRunnerCodes["c"]
+  ); //code for running testcase
   const [saved, isSaved] = useState(false);
   const opType = useRef(0);
   const op = useRef(0);
@@ -366,10 +388,10 @@ function AddTestCase(props) {
       <br />
       <p>Driver code (int main function) </p>
       <Editor
-        language={languages[selectedLanguage]?.language || "c"}
+        language={props.selectedLanguage}
         height={"20vh"}
         value={code}
-        onChange={(value, e) => setCode((e1) => value)}
+        onChange={(value, e) => setCode(value)}
       />
       <button className="testcasecheckbutton" onClick={checkTcValidity}>
         check testcase

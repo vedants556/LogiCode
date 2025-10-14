@@ -7,6 +7,10 @@ import Navbar from "../components/Navbar/Navbar";
 import { Link } from "react-router-dom";
 
 function Problem() {
+  // Timer state
+  const [timer, setTimer] = useState(null); // in seconds
+  const [timeLeft, setTimeLeft] = useState(null); // in seconds
+  const timerInterval = useRef(null);
   //description, usecase
 
   //get info, testcases using useEffect
@@ -38,6 +42,7 @@ function Problem() {
 
   // const [q_id, setQid] = useState(-1)
 
+  // Initial load: fetch problem, languages, testcases, solved
   useEffect(() => {
     function checkLogged() {
       if (localStorage.getItem("auth")) {
@@ -59,6 +64,12 @@ function Problem() {
       setProbData(data);
       setValue(data[0].defcode);
       setCheckBy(data[0].checkBy);
+      // Timer logic: if timer is set, start countdown
+      if (data[0].timer && data[0].timer > 0) {
+        const seconds = parseInt(data[0].timer) * 60;
+        setTimer(seconds);
+        setTimeLeft(seconds);
+      }
     }
 
     async function getTestcases() {
@@ -97,6 +108,29 @@ function Problem() {
     checkSolved();
   }, []);
 
+  // Timer countdown effect
+  useEffect(() => {
+    if (timer && timeLeft !== null && timeLeft > 0) {
+      timerInterval.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev === 1) {
+            clearInterval(timerInterval.current);
+            handleAutoSubmit();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timerInterval.current);
+  }, [timer, timeLeft]);
+
+  // Auto-submit function
+  async function handleAutoSubmit() {
+    alert("Time is up! Your code will be submitted automatically.");
+    // TODO: Trigger Output's submit logic here if possible
+  }
+
   // Handle language change
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
@@ -109,6 +143,26 @@ function Problem() {
   return (
     <>
       <div className="problemContainer">
+        {timer && timeLeft !== null && (
+          <div
+            style={{
+              background: "#222",
+              color: "#fff",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              marginBottom: "12px",
+              fontSize: "1.2em",
+              textAlign: "center",
+              width: "fit-content",
+              marginLeft: "auto",
+              marginRight: "auto",
+              letterSpacing: "2px",
+            }}
+          >
+            Time Left: {Math.floor(timeLeft / 60)}:
+            {(timeLeft % 60).toString().padStart(2, "0")}
+          </div>
+        )}
         <div className="editorBox">
           <div className="language-selector">
             <label htmlFor="language-select">Language: </label>

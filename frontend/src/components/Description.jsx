@@ -11,6 +11,16 @@ import { Link } from "react-router-dom";
 // const socket = io("http://localhost:5000");
 
 function Description(props) {
+  // Proctoring: prevent copy/cut/context menu on problem description
+  const [proctorMsg, setProctorMsg] = useState("");
+  const proctorTimeout = useRef(null);
+
+  function handleProctorEvent(e) {
+    e.preventDefault();
+    setProctorMsg("Copying is disabled for proctoring.");
+    clearTimeout(proctorTimeout.current);
+    proctorTimeout.current = setTimeout(() => setProctorMsg(""), 2000);
+  }
   // const [window, setWindow] = useState('d')   // options : d = description, a = AI chatbox
 
   // socket.on('connect', ()=>{
@@ -105,10 +115,31 @@ function Description(props) {
         <div className="descTab">
           <h1>{qname}</h1>
           <p>{props.solved ? <SiTicktick color="lightgreen" /> : "unsolved"}</p>
-          <Markdown>{description}</Markdown>
-          {/* <p>{description}</p> */}
-
-          {/* {createRoot(document.body).render(<Markdown>{AIresponse.current.innerHTML}</Markdown>)} */}
+          <div
+            onCopy={handleProctorEvent}
+            onCut={handleProctorEvent}
+            onContextMenu={handleProctorEvent}
+            style={{ position: "relative" }}
+          >
+            <Markdown>{description}</Markdown>
+            {proctorMsg && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                  background: "rgba(0,0,0,0.8)",
+                  color: "#fff",
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  zIndex: 10,
+                  fontSize: "0.95em",
+                }}
+              >
+                {proctorMsg}
+              </div>
+            )}
+          </div>
         </div>
       )}
 

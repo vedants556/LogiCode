@@ -246,7 +246,8 @@ app.post("/api/submitquestion", (req, res) => {
     //   }
 
     //first add data to questions table
-    const questionQuery = `insert into questions(qname, description, defcode, checkBy, funcname, solution, qtype) values ( ?, ?, ?, ?, ?, ?, ?);`;
+    // Add timer field (in minutes)
+    const questionQuery = `insert into questions(qname, description, defcode, checkBy, funcname, solution, qtype, timer) values ( ?, ?, ?, ?, ?, ?, ?, ?);`;
     const qValuesArray = [
       questionData.qname,
       questionData.desc,
@@ -255,6 +256,7 @@ app.post("/api/submitquestion", (req, res) => {
       questionData.funcName,
       questionData.solution,
       questionData.qtype,
+      questionData.timer || 0,
     ];
 
     db.query(questionQuery, qValuesArray, (err, result) => {
@@ -369,7 +371,8 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
 
   // console.log(qid);
 
-  const q = "select * from questions where q_id = ? ;";
+  // Include timer in the result
+  const q = "select *, timer from questions where q_id = ? ;";
 
   db.query(q, [qid], (err, result) => {
     if (err) {
@@ -415,6 +418,22 @@ app.post("/api/checktc", async (req, res) => {
     const langConfig = languageConfig[language] || languageConfig.c;
 
     async function testQuestion(testc) {
+      // Prepare file content and name based on language
+      let fileName = `my_cool_code.${langConfig.fileExtension}`;
+      let fileContent = "";
+      if (language === "java") {
+        // For Java, usercode should be a full class, runnercode may be ignored or appended as a method if needed
+        fileContent = usercode; // runnercode is not appended for Java
+        // Optionally, parse for class name and set fileName accordingly
+        const match = usercode.match(/class\s+(\w+)/);
+        if (match) {
+          fileName = `${match[1]}.java`;
+        }
+      } else {
+        // For C, C++, Python: append runnercode if present
+        fileContent = usercode + (testc.runnercode || "");
+      }
+
       const response = await fetch(baseURL, {
         method: "POST",
         headers: {
@@ -427,11 +446,11 @@ app.post("/api/checktc", async (req, res) => {
           runtime: langConfig.runtime,
           files: [
             {
-              name: `my_cool_code.${langConfig.fileExtension}`,
-              content: usercode + testc.runnercode,
+              name: fileName,
+              content: fileContent,
             },
           ],
-          stdin: "",
+          stdin: testc.ip || "",
           args: [],
           compile_timeout: 10000,
           run_timeout: 3000,
@@ -439,26 +458,16 @@ app.post("/api/checktc", async (req, res) => {
       });
 
       const data = await response.json();
-      // console.log('\n' + usercode + testc.runnercode);
-      // console.log(data);
-
-      // console.log("code op "+data.run.stdout);
-      // console.log("\ndesired "+testc.op);
 
       if (data.run.stderr) {
-        //error aaya
-        // console.log(data.run.stderr);
         error = data.run.stderr;
-
         status = false;
         return false;
-      } else if (data.run.stdout != testc.op) {
+      } else if ((data.run.stdout || "").trim() != (testc.op || "").trim()) {
         your_output = data.run.stdout;
         return false;
       }
       return true;
-
-      //function ends
     }
 
     // Iterate over each test case with a 300ms delay
@@ -490,6 +499,17 @@ app.post("/api/tcvalid", async (req, res) => {
   let language = req.body.language || "c";
   const langConfig = languageConfig[language] || languageConfig.c;
 
+  // Prepare file content and name based on language
+  let fileName = `my_cool_code.${langConfig.fileExtension}`;
+  let fileContent = req.body.code;
+  if (language === "java") {
+    // For Java, try to set file name to class name
+    const match = req.body.code.match(/class\s+(\w+)/);
+    if (match) {
+      fileName = `${match[1]}.java`;
+    }
+  }
+
   const response = await fetch(baseURLGlobal, {
     method: "POST",
     headers: {
@@ -502,11 +522,11 @@ app.post("/api/tcvalid", async (req, res) => {
       runtime: langConfig.runtime,
       files: [
         {
-          name: `my_cool_code.${langConfig.fileExtension}`,
-          content: req.body.code,
+          name: fileName,
+          content: fileContent,
         },
       ],
-      stdin: "",
+      stdin: req.body.ip || "",
       args: [],
       compile_timeout: 10000,
       run_timeout: 3000,
@@ -518,21 +538,11 @@ app.post("/api/tcvalid", async (req, res) => {
   const remark = {};
   remark.status = "invalid";
 
-  // if (data.run.stderr) {
-  //     remark.error = data.run.stderr
-  // }
-
-  // else if (data.run.stdout == req.body.op) {
-  //     remark.status = 'valid'
-  // }
-
-  if (data.run.stdout == req.body.op) {
+  if ((data.run.stdout || "").trim() == (req.body.op || "").trim()) {
     remark.status = "valid";
   } else {
     remark.error = data.run.stderr || "Your output:\n" + data.run.stdout;
   }
-
-  // console.log(data);
 
   res.json(remark);
 });
