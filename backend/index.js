@@ -33,7 +33,7 @@ const db = mysql2.createConnection({
   host: "localhost",
   user: "root",
   password: process.env.SQL_PASSWORD,
-  database: "logicode",
+  database: "codesync",
 });
 
 // Access your API key as an environment variable (see "Set up your API key" above)
@@ -47,9 +47,64 @@ const io = new Server(httpServer, {
   cors: "*",
 });
 
+// Language configuration for Piston API
+const languageConfig = {
+  c: {
+    language: "c",
+    version: "10.2.0",
+    aliases: ["gcc"],
+    runtime: "gcc",
+    fileExtension: "c",
+    defaultCode: `#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\\n");
+    return 0;
+}`,
+  },
+  cpp: {
+    language: "c++",
+    version: "10.2.0",
+    aliases: ["g++"],
+    runtime: "g++",
+    fileExtension: "cpp",
+    defaultCode: `#include <iostream>
+
+int main() {
+    std::cout << "Hello, World!" << std::endl;
+    return 0;
+}`,
+  },
+  python: {
+    language: "python",
+    version: "3.10.0",
+    aliases: ["py"],
+    runtime: "python",
+    fileExtension: "py",
+    defaultCode: `print("Hello, World!")`,
+  },
+  java: {
+    language: "java",
+    version: "15.0.2",
+    aliases: ["java"],
+    runtime: "java",
+    fileExtension: "java",
+    defaultCode: `public class Main {
+    public static void main(String[] args) {
+        System.out.println("Hello, World!");
+    }
+}`,
+  },
+};
+
 app.use(bodyparser);
 
 //code starts here
+
+// Get available languages endpoint
+app.get("/api/languages", (req, res) => {
+  res.json(languageConfig);
+});
 
 //socket connections here
 
@@ -133,13 +188,13 @@ app.post("/api/aihelp", (req, res) => {
   try {
     // console.log(req.body.code);
 
-    const language = "c";
+    const language = req.body.language || "c";
 
     // res.send("I can hear You")
 
     async function run() {
       // The Gemini 1.5 models are versatile and work with both text-only and multimodal prompts
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       //prompt to send to AI
 
@@ -334,6 +389,7 @@ app.post("/api/checktc", async (req, res) => {
   let your_output = "";
   let expected_output = "";
   let usercode = req.body.usercode;
+  let language = req.body.language || "c";
 
   try {
     const result = await new Promise((resolve, reject) => {
@@ -355,6 +411,9 @@ app.post("/api/checktc", async (req, res) => {
 
     let status = true;
 
+    // Get language configuration
+    const langConfig = languageConfig[language] || languageConfig.c;
+
     async function testQuestion(testc) {
       const response = await fetch(baseURL, {
         method: "POST",
@@ -362,13 +421,13 @@ app.post("/api/checktc", async (req, res) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          language: "c",
-          version: "10.2.0",
-          aliases: ["gcc"],
-          runtime: "gcc",
+          language: langConfig.language,
+          version: langConfig.version,
+          aliases: langConfig.aliases,
+          runtime: langConfig.runtime,
           files: [
             {
-              name: "my_cool_code.c",
+              name: `my_cool_code.${langConfig.fileExtension}`,
               content: usercode + testc.runnercode,
             },
           ],
@@ -428,19 +487,22 @@ app.post("/api/checktc", async (req, res) => {
 app.post("/api/tcvalid", async (req, res) => {
   // console.log(req.body);
 
+  let language = req.body.language || "c";
+  const langConfig = languageConfig[language] || languageConfig.c;
+
   const response = await fetch(baseURLGlobal, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      language: "c",
-      version: "10.2.0",
-      aliases: ["gcc"],
-      runtime: "gcc",
+      language: langConfig.language,
+      version: langConfig.version,
+      aliases: langConfig.aliases,
+      runtime: langConfig.runtime,
       files: [
         {
-          name: "my_cool_code.c",
+          name: `my_cool_code.${langConfig.fileExtension}`,
           content: req.body.code,
         },
       ],
@@ -535,16 +597,17 @@ app.post("/api/checkbyai", (req, res) => {
 
   const desc = req.body.desc;
   const code = req.body.code;
+  const language = req.body.language || "c";
 
   const prompt = `You are an instructor who will check a user written code. If the user written code is correct and should execute, just say 'pass' . Else if there is any minor or major mistake, say 'fail'.  
     here is the question 
     ${desc}
-    Here is the code wriitten by user : ${code}`;
+    Here is the ${language} code written by user : ${code}`;
 
   try {
     async function run() {
       // The Gemini 1.5 models are versatile and work with both text-only and multimodal prompts
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
       //prompt to send to AI
 
