@@ -40,7 +40,7 @@ const db = mysql2.createConnection({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
-const port = 5000;
+const port = process.env.PORT || 5000;
 const baseURLGlobal = "https://emkc.org/api/v2/piston/execute";
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
@@ -927,6 +927,22 @@ app.get("/api/deleteproblem/:qid", authenticateUser, (req, res) => {
 //     console.log("App is listening at port "+port);
 // })
 
-httpServer.listen(port, (req, res) => {
+// Serve static frontend in production
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const publicDir = path.join(__dirname, "public");
+app.use(express.static(publicDir));
+
+// SPA fallback: send index.html for unknown routes (non-API)
+app.get("*", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
+  res.sendFile(path.join(publicDir, "index.html"));
+});
+
+httpServer.listen(port, () => {
   console.log("http server up at ", port);
 });
