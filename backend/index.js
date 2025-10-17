@@ -30,13 +30,30 @@ dotenv.config();
 const jwtKey = process.env.JWT_SECRET || "aanv";
 
 //configure mysql database
-const db = mysql2.createConnection({
-  host: process.env.DB_HOST || "localhost",
-  user: process.env.DB_USER || "root",
-  password: process.env.SQL_PASSWORD,
-  database: process.env.DB_NAME || "codesync",
-  port: process.env.DB_PORT || 3306,
-});
+let dbConfig;
+
+if (process.env.DATABASE_URL) {
+  // Railway provides DATABASE_URL in format: mysql://user:password@host:port/database
+  const url = new URL(process.env.DATABASE_URL);
+  dbConfig = {
+    host: url.hostname,
+    user: url.username,
+    password: url.password,
+    database: url.pathname.slice(1), // Remove leading slash
+    port: url.port || 3306,
+  };
+} else {
+  // Fallback to individual environment variables
+  dbConfig = {
+    host: process.env.DB_HOST || "localhost",
+    user: process.env.DB_USER || "root",
+    password: process.env.SQL_PASSWORD,
+    database: process.env.DB_NAME || "codesync",
+    port: process.env.DB_PORT || 3306,
+  };
+}
+
+const db = mysql2.createConnection(dbConfig);
 
 // Access your API key as an environment variable (see "Set up your API key" above)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
