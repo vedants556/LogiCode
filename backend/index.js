@@ -27,13 +27,15 @@ import { error } from "console";
 // configure env files
 dotenv.config();
 
-const jwtKey = "aanv";
+const jwtKey = process.env.JWT_SECRET || "aanv";
+
 //configure mysql database
 const db = mysql2.createConnection({
-  host: "localhost",
-  user: "root",
+  host: process.env.DB_HOST || "localhost",
+  user: process.env.DB_USER || "root",
   password: process.env.SQL_PASSWORD,
-  database: "codesync",
+  database: process.env.DB_NAME || "codesync",
+  port: process.env.DB_PORT || 3306,
 });
 
 // Access your API key as an environment variable (see "Set up your API key" above)
@@ -98,6 +100,21 @@ int main() {
 };
 
 app.use(bodyparser);
+
+// CORS configuration
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+  );
+  if (req.method === "OPTIONS") {
+    res.sendStatus(200);
+  } else {
+    next();
+  }
+});
 
 //code starts here
 
