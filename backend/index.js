@@ -52,9 +52,9 @@ console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
 // Debug: Show all MySQL-related environment variables
 console.log("🔍 All MySQL environment variables:");
 Object.keys(process.env)
-  .filter(key => key.includes('MYSQL') || key.includes('DATABASE'))
-  .forEach(key => {
-    console.log(`  ${key}: ${process.env[key] ? '✅ Set' : '❌ Not set'}`);
+  .filter((key) => key.includes("MYSQL") || key.includes("DATABASE"))
+  .forEach((key) => {
+    console.log(`  ${key}: ${process.env[key] ? "✅ Set" : "❌ Not set"}`);
   });
 
 let dbConfig;
@@ -74,10 +74,10 @@ if (process.env.DATABASE_URL) {
   console.log(
     "📡 Using Railway MySQL environment variables for database connection"
   );
- 
+
   // Try different MySQL URL formats in order of preference
   const mysqlUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL;
-  
+
   if (mysqlUrl) {
     console.log("📡 Using MySQL URL for database connection");
     try {
