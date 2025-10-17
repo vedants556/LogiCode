@@ -35,7 +35,8 @@ console.log(
   "DATABASE_URL:",
   process.env.DATABASE_URL ? "✅ Set" : "❌ Not set"
 );
-console.log("DB_HOST:", process.env.DB_HOST || "Not set");
+console.log("MYSQLHOST:", process.env.MYSQLHOST || "Not set");
+console.log("MYSQL_DATABASE:", process.env.MYSQL_DATABASE || "Not set");
 console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
 
 let dbConfig;
@@ -53,15 +54,16 @@ if (process.env.DATABASE_URL) {
   };
 } else {
   console.log(
-    "📡 Using individual environment variables for database connection"
+    "📡 Using Railway MySQL environment variables for database connection"
   );
-  // Fallback to individual environment variables
+  // Use Railway MySQL environment variables
   dbConfig = {
-    host: process.env.DB_HOST || "localhost",
-    user: process.env.DB_USER || "root",
-    password: process.env.SQL_PASSWORD,
-    database: process.env.DB_NAME || "codesync",
-    port: process.env.DB_PORT || 3306,
+    host: process.env.MYSQLHOST || "localhost",
+    user: process.env.MYSQLUSER || "root",
+    password: process.env.MYSQLPASSWORD,
+    database:
+      process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
+    port: process.env.MYSQLPORT || 3306,
   };
 }
 
