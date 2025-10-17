@@ -31,7 +31,10 @@ const jwtKey = process.env.JWT_SECRET || "aanv";
 
 //configure mysql database
 console.log("🔍 Environment variables check:");
-console.log("DATABASE_URL:", process.env.DATABASE_URL ? "✅ Set" : "❌ Not set");
+console.log(
+  "DATABASE_URL:",
+  process.env.DATABASE_URL ? "✅ Set" : "❌ Not set"
+);
 console.log("DB_HOST:", process.env.DB_HOST || "Not set");
 console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
 
@@ -49,7 +52,9 @@ if (process.env.DATABASE_URL) {
     port: url.port || 3306,
   };
 } else {
-  console.log("📡 Using individual environment variables for database connection");
+  console.log(
+    "📡 Using individual environment variables for database connection"
+  );
   // Fallback to individual environment variables
   dbConfig = {
     host: process.env.DB_HOST || "localhost",
@@ -64,7 +69,7 @@ console.log("🗄️ Database config:", {
   host: dbConfig.host,
   user: dbConfig.user,
   database: dbConfig.database,
-  port: dbConfig.port
+  port: dbConfig.port,
 });
 
 const db = mysql2.createConnection(dbConfig);
