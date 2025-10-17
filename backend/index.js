@@ -46,7 +46,16 @@ console.log(
   "MYSQLPASSWORD:",
   process.env.MYSQLPASSWORD ? "✅ Set" : "❌ Not set"
 );
+console.log("MYSQL_URL:", process.env.MYSQL_URL ? "✅ Set" : "❌ Not set");
 console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
+
+// Debug: Show all MySQL-related environment variables
+console.log("🔍 All MySQL environment variables:");
+Object.keys(process.env)
+  .filter(key => key.includes('MYSQL') || key.includes('DATABASE'))
+  .forEach(key => {
+    console.log(`  ${key}: ${process.env[key] ? '✅ Set' : '❌ Not set'}`);
+  });
 
 let dbConfig;
 
@@ -65,12 +74,14 @@ if (process.env.DATABASE_URL) {
   console.log(
     "📡 Using Railway MySQL environment variables for database connection"
   );
-
-  // Try to use MYSQL_PUBLIC_URL first if available, otherwise use individual variables
-  if (process.env.MYSQL_PUBLIC_URL) {
-    console.log("📡 Using MYSQL_PUBLIC_URL for database connection");
+ 
+  // Try different MySQL URL formats in order of preference
+  const mysqlUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL;
+  
+  if (mysqlUrl) {
+    console.log("📡 Using MySQL URL for database connection");
     try {
-      const url = new URL(process.env.MYSQL_PUBLIC_URL);
+      const url = new URL(mysqlUrl);
       dbConfig = {
         host: url.hostname,
         user: url.username,
@@ -80,7 +91,7 @@ if (process.env.DATABASE_URL) {
       };
     } catch (error) {
       console.log(
-        "❌ Failed to parse MYSQL_PUBLIC_URL, falling back to individual variables"
+        "❌ Failed to parse MySQL URL, falling back to individual variables"
       );
       dbConfig = {
         host: process.env.MYSQLHOST || "localhost",
@@ -93,6 +104,7 @@ if (process.env.DATABASE_URL) {
     }
   } else {
     // Use Railway MySQL environment variables
+    console.log("📡 Using individual MySQL environment variables");
     dbConfig = {
       host: process.env.MYSQLHOST || "localhost",
       user: process.env.MYSQLUSER || "root",
