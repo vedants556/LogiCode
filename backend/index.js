@@ -30,9 +30,15 @@ dotenv.config();
 const jwtKey = process.env.JWT_SECRET || "aanv";
 
 //configure mysql database
+console.log("🔍 Environment variables check:");
+console.log("DATABASE_URL:", process.env.DATABASE_URL ? "✅ Set" : "❌ Not set");
+console.log("DB_HOST:", process.env.DB_HOST || "Not set");
+console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
+
 let dbConfig;
 
 if (process.env.DATABASE_URL) {
+  console.log("📡 Using DATABASE_URL for database connection");
   // Railway provides DATABASE_URL in format: mysql://user:password@host:port/database
   const url = new URL(process.env.DATABASE_URL);
   dbConfig = {
@@ -43,6 +49,7 @@ if (process.env.DATABASE_URL) {
     port: url.port || 3306,
   };
 } else {
+  console.log("📡 Using individual environment variables for database connection");
   // Fallback to individual environment variables
   dbConfig = {
     host: process.env.DB_HOST || "localhost",
@@ -53,30 +60,37 @@ if (process.env.DATABASE_URL) {
   };
 }
 
+console.log("🗄️ Database config:", {
+  host: dbConfig.host,
+  user: dbConfig.user,
+  database: dbConfig.database,
+  port: dbConfig.port
+});
+
 const db = mysql2.createConnection(dbConfig);
 
 // Handle database connection errors
 db.connect((err) => {
   if (err) {
-    console.error('Database connection failed:', err);
-    console.error('Database config:', {
+    console.error("Database connection failed:", err);
+    console.error("Database config:", {
       host: dbConfig.host,
       user: dbConfig.user,
       database: dbConfig.database,
-      port: dbConfig.port
+      port: dbConfig.port,
     });
     process.exit(1);
   } else {
-    console.log('✅ Database connected successfully');
-    console.log('Connected to database:', dbConfig.database);
+    console.log("✅ Database connected successfully");
+    console.log("Connected to database:", dbConfig.database);
   }
 });
 
 // Handle database disconnection
-db.on('error', (err) => {
-  console.error('Database error:', err);
-  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
-    console.log('Attempting to reconnect to database...');
+db.on("error", (err) => {
+  console.error("Database error:", err);
+  if (err.code === "PROTOCOL_CONNECTION_LOST") {
+    console.log("Attempting to reconnect to database...");
     db.connect();
   } else {
     throw err;
