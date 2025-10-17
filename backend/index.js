@@ -55,6 +55,34 @@ if (process.env.DATABASE_URL) {
 
 const db = mysql2.createConnection(dbConfig);
 
+// Handle database connection errors
+db.connect((err) => {
+  if (err) {
+    console.error('Database connection failed:', err);
+    console.error('Database config:', {
+      host: dbConfig.host,
+      user: dbConfig.user,
+      database: dbConfig.database,
+      port: dbConfig.port
+    });
+    process.exit(1);
+  } else {
+    console.log('✅ Database connected successfully');
+    console.log('Connected to database:', dbConfig.database);
+  }
+});
+
+// Handle database disconnection
+db.on('error', (err) => {
+  console.error('Database error:', err);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+    console.log('Attempting to reconnect to database...');
+    db.connect();
+  } else {
+    throw err;
+  }
+});
+
 // Access your API key as an environment variable (see "Set up your API key" above)
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
