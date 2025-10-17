@@ -37,6 +37,15 @@ console.log(
 );
 console.log("MYSQLHOST:", process.env.MYSQLHOST || "Not set");
 console.log("MYSQL_DATABASE:", process.env.MYSQL_DATABASE || "Not set");
+console.log(
+  "MYSQL_PUBLIC_URL:",
+  process.env.MYSQL_PUBLIC_URL ? "✅ Set" : "❌ Not set"
+);
+console.log("MYSQLUSER:", process.env.MYSQLUSER || "Not set");
+console.log(
+  "MYSQLPASSWORD:",
+  process.env.MYSQLPASSWORD ? "✅ Set" : "❌ Not set"
+);
 console.log("NODE_ENV:", process.env.NODE_ENV || "Not set");
 
 let dbConfig;
@@ -56,15 +65,43 @@ if (process.env.DATABASE_URL) {
   console.log(
     "📡 Using Railway MySQL environment variables for database connection"
   );
-  // Use Railway MySQL environment variables
-  dbConfig = {
-    host: process.env.MYSQLHOST || "localhost",
-    user: process.env.MYSQLUSER || "root",
-    password: process.env.MYSQLPASSWORD,
-    database:
-      process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
-    port: process.env.MYSQLPORT || 3306,
-  };
+
+  // Try to use MYSQL_PUBLIC_URL first if available, otherwise use individual variables
+  if (process.env.MYSQL_PUBLIC_URL) {
+    console.log("📡 Using MYSQL_PUBLIC_URL for database connection");
+    try {
+      const url = new URL(process.env.MYSQL_PUBLIC_URL);
+      dbConfig = {
+        host: url.hostname,
+        user: url.username,
+        password: url.password,
+        database: url.pathname.slice(1), // Remove leading slash
+        port: url.port || 3306,
+      };
+    } catch (error) {
+      console.log(
+        "❌ Failed to parse MYSQL_PUBLIC_URL, falling back to individual variables"
+      );
+      dbConfig = {
+        host: process.env.MYSQLHOST || "localhost",
+        user: process.env.MYSQLUSER || "root",
+        password: process.env.MYSQLPASSWORD,
+        database:
+          process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
+        port: process.env.MYSQLPORT || 3306,
+      };
+    }
+  } else {
+    // Use Railway MySQL environment variables
+    dbConfig = {
+      host: process.env.MYSQLHOST || "localhost",
+      user: process.env.MYSQLUSER || "root",
+      password: process.env.MYSQLPASSWORD,
+      database:
+        process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
+      port: process.env.MYSQLPORT || 3306,
+    };
+  }
 }
 
 console.log("🗄️ Database config:", {
@@ -79,13 +116,32 @@ const db = mysql2.createConnection(dbConfig);
 // Handle database connection errors
 db.connect((err) => {
   if (err) {
-    console.error("Database connection failed:", err);
+    console.error("❌ Database connection failed:", err.message);
+    console.error("Error code:", err.code);
     console.error("Database config:", {
       host: dbConfig.host,
       user: dbConfig.user,
       database: dbConfig.database,
       port: dbConfig.port,
     });
+
+    // Provide helpful error messages
+    if (err.code === "ENOTFOUND") {
+      console.error("💡 DNS resolution failed. This usually means:");
+      console.error(
+        "   1. The MySQL service is not properly connected to your app"
+      );
+      console.error("   2. The hostname is incorrect");
+      console.error(
+        "   3. Try using MYSQL_PUBLIC_URL instead of internal domain"
+      );
+    } else if (err.code === "ECONNREFUSED") {
+      console.error("💡 Connection refused. This usually means:");
+      console.error("   1. MySQL service is not running");
+      console.error("   2. Wrong port number");
+      console.error("   3. Firewall blocking the connection");
+    }
+
     process.exit(1);
   } else {
     console.log("✅ Database connected successfully");
