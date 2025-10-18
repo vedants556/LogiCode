@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar/Navbar";
+import "./Home.css";
 
 function Home() {
   const [username, setUserName] = useState("nobody");
@@ -135,119 +136,195 @@ function Home() {
   const progressbarwidth = 400;
 
   return (
-    <>
+    <div className="home-container">
+      <div className="home-background">
+        <div className="gradient-orb orb-1"></div>
+        <div className="gradient-orb orb-2"></div>
+        <div className="gradient-orb orb-3"></div>
+      </div>
+
       <Navbar />
-      <h1 className="dashboardheader">
-        {islogged ? username + "'s dashboard" : "Welcome to logicode"}
-      </h1>
-      {!islogged && <p>Pls login to start coding!</p>}
 
-      {!islogged && (
-        <button onClick={() => navigate("/registration")}>Sign in</button>
-      )}
-
-      {/* {profileInfo[0] && (
-        <div className="userchart" style={{ borderColor: bcolor }}>
-          <p>
-            {Math.round((profileInfo[0].solved / profileInfo[0].total) * 100)}%
-            completed
+      <div className="home-content">
+        <div className="welcome-section">
+          <h1 className="welcome-title">
+            {islogged ? `Welcome back, ${username}!` : "Welcome to LogiCode"}
+          </h1>
+          <p className="welcome-subtitle">
+            {islogged
+              ? "Ready to continue your coding journey?"
+              : "Start your coding journey with AI-powered learning"}
           </p>
-        </div>
-      )} */}
 
-      <div>
-        <div className="dashboardtop">
-          <Link className="homepagebuttons" id="profbutton" to={"/profile"}>
-            <span className="hpbtext">Profile</span>
-          </Link>
-          <Link
-            className="homepagebuttons"
-            id="probbutton"
-            to={"/problems/all"}
-          >
-            <span className="hpbtext">Problems</span>
-            {profileInfo[0] && (
-              <div className="progressbarContainer hideOnMobile">
-                <div
-                  className="innerpb"
-                  style={{ width: progressbarwidth + "px" }}
-                >
-                  <div
-                    className="outerpb"
-                    style={{
-                      width: Math.round(
-                        (profileInfo[0].solved / profileInfo[0].total) *
-                          progressbarwidth
-                      ),
-                    }}
-                  >
-                    <p>
-                      {Math.round(
-                        (profileInfo[0].solved / profileInfo[0].total) * 100
-                      )}
-                      % solved
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </Link>
-          <Link
-            className="homepagebuttons"
-            id="leaderbutton"
-            to={"/leaderboard"}
-          >
-            <span className="hpbtext">LeaderBoard</span>
-            <span className="smallrank">Rank</span>
-            <p className="ranktext"> {myRank}</p>
-          </Link>
+          {!islogged && (
+            <div className="auth-prompt">
+              <p className="auth-text">Please login to start coding!</p>
+              <button
+                className="auth-button"
+                onClick={() => navigate("/login")}
+              >
+                Get Started
+              </button>
+            </div>
+          )}
         </div>
+
+        {islogged && (
+          <div className="dashboard-cards">
+            <div className="dashboard-card profile-card">
+              <div className="card-header">
+                <h3 className="card-title">Profile</h3>
+                <div className="card-icon">👤</div>
+              </div>
+              <div className="card-content">
+                <p className="card-description">View and edit your profile</p>
+                <Link to="/profile" className="card-link">
+                  View Profile →
+                </Link>
+              </div>
+            </div>
+
+            <div className="dashboard-card problems-card">
+              <div className="card-header">
+                <h3 className="card-title">Problems</h3>
+                <div className="card-icon">💻</div>
+              </div>
+              <div className="card-content">
+                {profileInfo[0] && (
+                  <div className="progress-section">
+                    <div className="progress-info">
+                      <span className="progress-text">
+                        {Math.round(
+                          (profileInfo[0].solved / profileInfo[0].total) * 100
+                        )}
+                        % solved
+                      </span>
+                      <span className="progress-detail">
+                        {profileInfo[0].solved} of {profileInfo[0].total}{" "}
+                        problems
+                      </span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${Math.round(
+                            (profileInfo[0].solved / profileInfo[0].total) * 100
+                          )}%`,
+                          backgroundColor: bcolor,
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+                <Link to="/problems/all" className="card-link">
+                  Start Coding →
+                </Link>
+              </div>
+            </div>
+
+            <div className="dashboard-card leaderboard-card">
+              <div className="card-header">
+                <h3 className="card-title">Leaderboard</h3>
+                <div className="card-icon">🏆</div>
+              </div>
+              <div className="card-content">
+                <div className="rank-section">
+                  <div className="rank-number">{myRank}</div>
+                  <div className="rank-label">Your Rank</div>
+                </div>
+                <Link to="/leaderboard" className="card-link">
+                  View Rankings →
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
         {islogged && <Statsdiv chartInfo={chartInfo} />}
-        <h1 className="dashboardheader">Problems</h1>
-        <div className="typeButtonRoll">
-          <Link className="dtypeButtons" to={"/problems/array"}>
-            Array
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/stack"}>
-            Stack
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/queue"}>
-            Queue
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/linkedlist"}>
-            Linked List
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/tree"}>
-            Tree
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/graph"}>
-            Graph
-          </Link>
-          <Link className="dtypeButtons" to={"/problems/algorithm"}>
-            Algorithm
-          </Link>
+
+        <div className="problems-section">
+          <h2 className="section-title">Practice Problems</h2>
+          <p className="section-subtitle">
+            Choose a category to start practicing
+          </p>
+
+          <div className="problem-categories">
+            <Link className="category-card" to="/problems/array">
+              <div className="category-icon">📊</div>
+              <h3 className="category-title">Array</h3>
+              <p className="category-description">
+                Master array operations and algorithms
+              </p>
+            </Link>
+
+            <Link className="category-card" to="/problems/stack">
+              <div className="category-icon">📚</div>
+              <h3 className="category-title">Stack</h3>
+              <p className="category-description">Learn LIFO data structure</p>
+            </Link>
+
+            <Link className="category-card" to="/problems/queue">
+              <div className="category-icon">🚶</div>
+              <h3 className="category-title">Queue</h3>
+              <p className="category-description">Master FIFO data structure</p>
+            </Link>
+
+            <Link className="category-card" to="/problems/linkedlist">
+              <div className="category-icon">🔗</div>
+              <h3 className="category-title">Linked List</h3>
+              <p className="category-description">Dynamic data structures</p>
+            </Link>
+
+            <Link className="category-card" to="/problems/tree">
+              <div className="category-icon">🌳</div>
+              <h3 className="category-title">Tree</h3>
+              <p className="category-description">
+                Hierarchical data structures
+              </p>
+            </Link>
+
+            <Link className="category-card" to="/problems/graph">
+              <div className="category-icon">🕸️</div>
+              <h3 className="category-title">Graph</h3>
+              <p className="category-description">
+                Network and graph algorithms
+              </p>
+            </Link>
+
+            <Link className="category-card" to="/problems/algorithm">
+              <div className="category-icon">⚡</div>
+              <h3 className="category-title">Algorithm</h3>
+              <p className="category-description">
+                Advanced algorithmic problems
+              </p>
+            </Link>
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 export default Home;
 
 function Statsdiv(props) {
-  // console.log(props);
-
-  //circle charts are here
-
   return (
-    <div className="chartSection">
-      <h1 className="dashboardheader">My stats</h1>
-      <div className="chartdiv">
+    <div className="stats-section">
+      <h2 className="section-title">My Progress</h2>
+      <p className="section-subtitle">
+        Track your performance across different categories
+      </p>
+
+      <div className="stats-grid">
         {props.chartInfo.map((solType) => {
           return (
-            <Link to={"/problems/" + solType.qtype}>
-              <Stats key={solType.qtype} solType={solType}></Stats>
+            <Link
+              key={solType.qtype}
+              to={"/problems/" + solType.qtype}
+              className="stat-card"
+            >
+              <Stats solType={solType} />
             </Link>
           );
         })}
@@ -257,49 +334,62 @@ function Statsdiv(props) {
 }
 
 function Stats({ solType }) {
-  //circle chart
-  const [color, setcolor] = useState("white");
+  const [color, setcolor] = useState("#667eea");
   const number = Math.round((solType.usercount / solType.qcount) * 100);
+
   useEffect(() => {
     if (number < 33) {
       setcolor("#ff4545");
     } else if (number < 66) {
       setcolor("#ffe840");
     } else {
-      setcolor("lightgreen");
+      setcolor("#34c759");
     }
-  }, []);
-
-  // return <div className="statinfo" style={{borderColor: color}}>
-  //     <h4>{solType.qtype}</h4>
-  //     <span style={{color: color}}>
-  //     {number}%
-  //     </span>
-  // </div>
+  }, [number]);
 
   const dos = 590 * (1 - solType.usercount / solType.qcount);
 
   return (
-    <div className="wrapper">
-      <div className="outer">
-        <div className="inner">
-          <pre className="stat-text">{solType.qtype + "\n" + number + "%"}</pre>
+    <div className="stat-item">
+      <div className="stat-header">
+        <h4 className="stat-category">{solType.qtype}</h4>
+        <div className="stat-percentage" style={{ color: color }}>
+          {number}%
         </div>
       </div>
 
-      {number ? (
-        <svg className="circlesvg" width={"200px"} height={"200px"}>
-          <circle
-            cx={"100px"}
-            cy={"100px"}
-            r={"95"}
-            style={{ strokeDashoffset: dos }}
-            stroke={color}
-          ></circle>
-        </svg>
-      ) : (
-        ""
-      )}
+      <div className="stat-progress">
+        <div className="progress-circle">
+          <svg className="progress-svg" width="80" height="80">
+            <circle
+              cx="40"
+              cy="40"
+              r="35"
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.1)"
+              strokeWidth="6"
+            />
+            <circle
+              cx="40"
+              cy="40"
+              r="35"
+              fill="none"
+              stroke={color}
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={`${2 * Math.PI * 35}`}
+              strokeDashoffset={dos}
+              transform="rotate(-90 40 40)"
+            />
+          </svg>
+          <div className="progress-text">{number}%</div>
+        </div>
+      </div>
+
+      <div className="stat-details">
+        <span className="stat-solved">{solType.usercount} solved</span>
+        <span className="stat-total">of {solType.qcount} problems</span>
+      </div>
     </div>
   );
 }

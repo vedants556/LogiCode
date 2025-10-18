@@ -155,7 +155,7 @@ export const Loginsignup = () => {
 
         <form onSubmit={handleSubmit} className="auth-form">
           {action === "Sign up" && (
-            <div className="input-groupp">
+            <div className="input-group">
               <div className="input-wrapper">
                 <input
                   type="text"
@@ -168,7 +168,7 @@ export const Loginsignup = () => {
             </div>
           )}
 
-          <div className="input-groupp">
+          <div className="input-group">
             <div className="input-wrapper">
               <input
                 type="email"
@@ -180,7 +180,7 @@ export const Loginsignup = () => {
             </div>
           </div>
 
-          <div className="input-groupp">
+          <div className="input-group">
             <div className="input-wrapper">
               <input
                 type="password"
@@ -193,7 +193,7 @@ export const Loginsignup = () => {
           </div>
 
           {action === "Sign up" && (
-            <div className="input-groupp">
+            <div className="input-group">
               <div className="input-wrapper">
                 <input
                   type="password"

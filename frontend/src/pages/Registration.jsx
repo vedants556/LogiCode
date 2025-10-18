@@ -154,7 +154,7 @@ function Registration({ initialMode }) {
 
           <form onSubmit={handleSubmit} className="auth-form">
             {isSignUp && (
-              <div className="input-groupp">
+              <div className="input-group">
                 <div className="input-wrapper">
                   <input
                     type="text"
@@ -168,7 +168,7 @@ function Registration({ initialMode }) {
               </div>
             )}
 
-            <div className="input-groupp">
+            <div className="input-group">
               <div className="input-wrapper">
                 <input
                   type="email"
@@ -181,7 +181,7 @@ function Registration({ initialMode }) {
               </div>
             </div>
 
-            <div className="input-groupp">
+            <div className="input-group">
               <div className="input-wrapper">
                 <input
                   type="password"
@@ -195,7 +195,7 @@ function Registration({ initialMode }) {
             </div>
 
             {isSignUp && (
-              <div className="input-groupp">
+              <div className="input-group">
                 <div className="input-wrapper">
                   <input
                     type="password"
