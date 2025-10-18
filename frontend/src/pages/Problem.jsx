@@ -5,6 +5,7 @@ import Description from "../components/Description";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar/Navbar";
 import { Link } from "react-router-dom";
+import "./Problem.css";
 
 function Problem() {
   // Timer state
@@ -141,94 +142,106 @@ function Problem() {
 
   // console.log(value);
   return (
-    <>
-      <div className="problemContainer">
+    <div className="problem-container">
+      <div className="problem-background">
+        <div className="gradient-orb orb-1"></div>
+        <div className="gradient-orb orb-2"></div>
+        <div className="gradient-orb orb-3"></div>
+      </div>
+
+      <Navbar />
+
+      <div className="problem-content">
         {timer && timeLeft !== null && (
-          <div
-            style={{
-              background: "#222",
-              color: "#fff",
-              padding: "8px 16px",
-              borderRadius: "8px",
-              marginBottom: "12px",
-              fontSize: "1.2em",
-              textAlign: "center",
-              width: "fit-content",
-              marginLeft: "auto",
-              marginRight: "auto",
-              letterSpacing: "2px",
-            }}
-          >
-            Time Left: {Math.floor(timeLeft / 60)}:
-            {(timeLeft % 60).toString().padStart(2, "0")}
+          <div className="timer-display">
+            <div className="timer-icon">⏰</div>
+            <div className="timer-text">
+              Time Left: {Math.floor(timeLeft / 60)}:
+              {(timeLeft % 60).toString().padStart(2, "0")}
+            </div>
           </div>
         )}
-        <div className="editorBox">
-          <div className="language-selector">
-            <label htmlFor="language-select">Language: </label>
-            <select
-              id="language-select"
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              style={{
-                padding: "8px",
-                margin: "10px",
-                borderRadius: "4px",
-                border: "1px solid #ccc",
-                backgroundColor: "#2d3748",
-                color: "white",
-              }}
-            >
-              {Object.keys(languages).map((lang) => (
-                <option key={lang} value={lang}>
-                  {lang.toUpperCase()}
-                </option>
-              ))}
-            </select>
+
+        <div className="problem-layout">
+          <div className="problem-sidebar">
+            <Description
+              setDesc1={setDesc1}
+              solved={solved}
+              value={value}
+              problemData={problemData}
+              setValue={setValue}
+              socket={socket}
+              setSocket={setSocket}
+              live={live}
+              setLive={setLive}
+              username={username}
+              setUname={setUname}
+            />
           </div>
-          <Editor
-            height="70vh"
-            width={"inherit"}
-            language={languages[selectedLanguage]?.language || "c"}
-            value={value}
-            onChange={(value, e) => setValue((e1) => value)}
-            className="editor"
-            theme="vs-dark"
-            options={{
-              fontSize: 14,
-              minimap: { enabled: false },
-              scrollBeyondLastLine: false,
-              automaticLayout: true,
-            }}
-          />
+
+          <div className="problem-main">
+            <div className="editor-section">
+              <div className="editor-header">
+                <h3 className="editor-title">Code Editor</h3>
+                <div className="language-selector">
+                  <label htmlFor="language-select" className="language-label">
+                    Language:
+                  </label>
+                  <select
+                    id="language-select"
+                    value={selectedLanguage}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    className="language-select"
+                  >
+                    {Object.keys(languages).map((lang) => (
+                      <option key={lang} value={lang}>
+                        {lang.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="editor-container">
+                <Editor
+                  height="60vh"
+                  width="100%"
+                  language={languages[selectedLanguage]?.language || "c"}
+                  value={value}
+                  onChange={(value, e) => setValue((e1) => value)}
+                  className="code-editor"
+                  theme="vs-dark"
+                  options={{
+                    fontSize: 14,
+                    minimap: { enabled: false },
+                    scrollBeyondLastLine: false,
+                    automaticLayout: true,
+                    wordWrap: "on",
+                    lineNumbers: "on",
+                    folding: true,
+                    bracketPairColorization: { enabled: true },
+                    renderWhitespace: "selection",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="output-section">
+              <Output
+                desc1={desc1}
+                userid={userid}
+                setSolved={setSolved}
+                testcases={testcases}
+                qid={qid}
+                checkBy={checkBy}
+                code={value}
+                language={selectedLanguage}
+              />
+            </div>
+          </div>
         </div>
-
-        <Output
-          desc1={desc1}
-          userid={userid}
-          setSolved={setSolved}
-          testcases={testcases}
-          qid={qid}
-          checkBy={checkBy}
-          code={value}
-          language={selectedLanguage}
-        />
-
-        <Description
-          setDesc1={setDesc1}
-          solved={solved}
-          value={value}
-          problemData={problemData}
-          setValue={setValue}
-          socket={socket}
-          setSocket={setSocket}
-          live={live}
-          setLive={setLive}
-          username={username}
-          setUname={setUname}
-        />
       </div>
-    </>
+    </div>
   );
 }
 

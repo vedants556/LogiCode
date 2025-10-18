@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { SiTicktick } from "react-icons/si";
 import { CircleCheckBig } from "lucide-react";
 import Navbar from "../components/Navbar/Navbar";
+import "./ProblemList.css";
 
 function ProblemList() {
   const type = useParams().type;
@@ -10,21 +11,17 @@ function ProblemList() {
 
   const [problist, setProbList] = useState([]);
   const [solvedList, setSolvedList] = useState([]);
-  const [isLogged, setLogged] = useState(true)
-  const navigate = useNavigate()
-
+  const [isLogged, setLogged] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-
     function checkLogged() {
-      if(localStorage.getItem('auth')){
-        setLogged(true)
-      }
-
-      else{
-        setLogged(false) 
+      if (localStorage.getItem("auth")) {
+        setLogged(true);
+      } else {
+        setLogged(false);
         // navigate('../../login')
-     }
+      }
     }
 
     async function getProbList() {
@@ -40,59 +37,157 @@ function ProblemList() {
       //dummy user id
 
       if (isLogged) {
-      const resp = await fetch("/api/getSolvedProblems", {
-        method: "post",
-        headers: {
-          "Content-type": "application/json",
-          'authorization' : 'Bearer '+localStorage.getItem("auth")
-        },
-        body: JSON.stringify({
-          authToken: localStorage.getItem("auth"),
-        }),
-      });
-      const data = await resp.json();
+        const resp = await fetch("/api/getSolvedProblems", {
+          method: "post",
+          headers: {
+            "Content-type": "application/json",
+            authorization: "Bearer " + localStorage.getItem("auth"),
+          },
+          body: JSON.stringify({
+            authToken: localStorage.getItem("auth"),
+          }),
+        });
+        const data = await resp.json();
 
-      console.log(data);
-      setSolvedList(data.quids);
-
-    }
-    else{
-      const navigate = useNavigate()
-      alert("not logged in")
-    }
+        console.log(data);
+        setSolvedList(data.quids);
+      } else {
+        const navigate = useNavigate();
+        alert("not logged in");
+      }
     }
 
-    checkLogged()
+    checkLogged();
     getProbList();
     getSolvedList();
   }, []);
 
   console.log(problist);
   console.log(solvedList);
-  
 
   return (
-    <div>
-      <Navbar/>
-      {!isLogged && <p className="warning">Please login to start coding!</p> }
-      <h1 className="dashboardheader">Problem List</h1>
-      {problist.map((problem) => {
-        //to continue
-        return (
-          <Link
-            className="questionButtons"
-            to={"/problem/" + problem.q_id}
-            key={problem.q_id}
-          >
-            {problem.qname} -- {problem.qtype}{" "}
-            {solvedList.includes(problem.q_id) ? (
-              <SiTicktick id="tick" style={{'color':'lightgreen'}}/>
-            ) : (
-              ""
-            )}
-          </Link>
-        );
-      })}
+    <div className="problemlist-container">
+      <div className="problemlist-background">
+        <div className="gradient-orb orb-1"></div>
+        <div className="gradient-orb orb-2"></div>
+        <div className="gradient-orb orb-3"></div>
+      </div>
+
+      <Navbar />
+
+      <div className="problemlist-content">
+        <div className="problemlist-header">
+          <h1 className="problemlist-title">
+            {type.charAt(0).toUpperCase() + type.slice(1)} Problems
+          </h1>
+          <p className="problemlist-subtitle">
+            Practice {type} problems and improve your coding skills
+          </p>
+        </div>
+
+        {!isLogged && (
+          <div className="auth-prompt">
+            <div className="auth-card">
+              <div className="auth-icon">🔒</div>
+              <h3 className="auth-title">Login Required</h3>
+              <p className="auth-text">
+                Please login to start coding and track your progress!
+              </p>
+              <button
+                className="auth-button"
+                onClick={() => navigate("/login")}
+              >
+                Login Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isLogged && (
+          <div className="problems-section">
+            <div className="problems-stats">
+              <div className="stat-card">
+                <div className="stat-icon">📊</div>
+                <div className="stat-info">
+                  <div className="stat-number">{problist.length}</div>
+                  <div className="stat-label">Total Problems</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">✅</div>
+                <div className="stat-info">
+                  <div className="stat-number">{solvedList.length}</div>
+                  <div className="stat-label">Solved</div>
+                </div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">🎯</div>
+                <div className="stat-info">
+                  <div className="stat-number">
+                    {problist.length > 0
+                      ? Math.round((solvedList.length / problist.length) * 100)
+                      : 0}
+                    %
+                  </div>
+                  <div className="stat-label">Progress</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="problems-grid">
+              {problist.map((problem) => {
+                const isSolved = solvedList.includes(problem.q_id);
+                return (
+                  <Link
+                    className={`problem-card ${isSolved ? "solved" : ""}`}
+                    to={"/problem/" + problem.q_id}
+                    key={problem.q_id}
+                  >
+                    <div className="problem-header">
+                      <div className="problem-title">{problem.qname}</div>
+                      <div className="problem-status">
+                        {isSolved ? (
+                          <div className="solved-badge">
+                            <SiTicktick className="tick-icon" />
+                            <span>Solved</span>
+                          </div>
+                        ) : (
+                          <div className="unsolved-badge">
+                            <CircleCheckBig className="circle-icon" />
+                            <span>Unsolved</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="problem-meta">
+                      <div className="problem-type">
+                        <span className="type-label">Category:</span>
+                        <span className="type-value">{problem.qtype}</span>
+                      </div>
+                      <div className="problem-difficulty">
+                        <span className="difficulty-label">Difficulty:</span>
+                        <span
+                          className={`difficulty-value ${
+                            problem.difficulty || "medium"
+                          }`}
+                        >
+                          {problem.difficulty || "Medium"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="problem-footer">
+                      <div className="problem-id">ID: {problem.q_id}</div>
+                      <div className="problem-arrow">→</div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
