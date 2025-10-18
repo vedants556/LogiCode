@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import "./Navbar.css";
 import { Link } from "react-router-dom";
-import { FiMenu } from "react-icons/fi";
-import { IoClose } from "react-icons/io5";
+import { Menu, X, Code, User, LogOut } from "lucide-react";
 
 const Navbar = () => {
-  const [islogged, setLogged] = useState(0);
+  const [islogged, setLogged] = useState(false);
   const [username, setUsername] = useState("");
   const [showSidebar, setSidebar] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
 
   useEffect(() => {
     async function checkLogged() {
@@ -36,85 +36,182 @@ const Navbar = () => {
     checkLogged();
   }, []);
 
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("auth");
+    setLogged(false);
+    setUsername("");
+    setSidebar(false);
+  };
+
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+    setSidebar(false);
+  };
+
   return (
     <>
-      <div className="navbar" id="Navbar">
-        <div className="navdiv ">
-          <div className="logo">
-            <Link to={"/"}>logicode</Link>
+      <nav className={`navbar ${isScrolled ? "scrolled" : ""}`}>
+        <div className="nav-container">
+          <div className="nav-brand">
+            <Link to="/" className="brand-link">
+              <Code className="brand-icon" />
+              <span className="brand-text">logicode</span>
+            </Link>
           </div>
-          <div className="nav-items hideonPhone">
-            <ul className="navul">
-              <li className="navli">
-                <Link to={"/home"}>Dashboard</Link>
+
+          <div className="nav-menu">
+            <ul className="nav-list">
+              <li className="nav-item">
+                <Link to="/home" className="nav-link">
+                  Dashboard
+                </Link>
               </li>
-              <li className="navli">
-                <a href="#obj">About Us</a>
+              <li className="nav-item">
+                <button
+                  className="nav-link"
+                  onClick={() => scrollToSection("features")}
+                >
+                  Features
+                </button>
               </li>
-              <li className="navli">
-                <a href="#contact">Contact Us</a>
+              <li className="nav-item">
+                <button
+                  className="nav-link"
+                  onClick={() => scrollToSection("about")}
+                >
+                  About
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className="nav-link"
+                  onClick={() => scrollToSection("contact")}
+                >
+                  Contact
+                </button>
               </li>
             </ul>
           </div>
-          <div className="auth-buttons hideonPhone">
-            {!islogged && (
-              <Link to={"/login"}>
-                <button className="button">Login</button>
-              </Link>
-            )}
-            {!islogged && (
-              <Link to={"/signup"}>
-                <button className="button">SignUp</button>
-              </Link>
+
+          <div className="nav-actions">
+            {!islogged ? (
+              <div className="auth-buttons">
+                <Link to="/login" className="btn-login">
+                  Login
+                </Link>
+                <Link to="/signup" className="btn-signup">
+                  Sign Up
+                </Link>
+              </div>
+            ) : (
+              <div className="user-menu">
+                <Link to="/profile" className="user-link">
+                  <User className="user-icon" />
+                  <span>{username}</span>
+                </Link>
+                <button onClick={handleLogout} className="logout-btn">
+                  <LogOut className="logout-icon" />
+                </button>
+              </div>
             )}
 
-            {islogged && <Link to={"/profile"}>Hello {username}</Link>}
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setSidebar(!showSidebar)}
+            >
+              {showSidebar ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
-          {!showSidebar ? (
-            <FiMenu
-              className="menuicon"
-              size={"25px"}
-              onClick={() => setSidebar(true)}
-            />
-          ) : (
-            <IoClose
-              color="white"
-              size={"23px"}
-              onClick={() => setSidebar(false)}
-            />
-          )}{" "}
         </div>
-      </div>
+      </nav>
 
       {showSidebar && (
-        <div className="sidebarNav">
-          <ul>
-            <li>
-              <Link to={"/home"}>Home</Link>
-            </li>
-            <li>
-              <Link to={"/"}>About us</Link>
-            </li>
-            <li>
-              <Link to={"/"}>Contact us</Link>
-            </li>
-            {islogged && (
-              <li>
-                <Link to={"/profile"}>Profile</Link>
+        <div className="mobile-menu">
+          <div className="mobile-menu-content">
+            <ul className="mobile-nav-list">
+              <li className="mobile-nav-item">
+                <Link
+                  to="/home"
+                  className="mobile-nav-link"
+                  onClick={() => setSidebar(false)}
+                >
+                  Dashboard
+                </Link>
               </li>
-            )}
+              <li className="mobile-nav-item">
+                <button
+                  className="mobile-nav-link"
+                  onClick={() => scrollToSection("features")}
+                >
+                  Features
+                </button>
+              </li>
+              <li className="mobile-nav-item">
+                <button
+                  className="mobile-nav-link"
+                  onClick={() => scrollToSection("about")}
+                >
+                  About
+                </button>
+              </li>
+              <li className="mobile-nav-item">
+                <button
+                  className="mobile-nav-link"
+                  onClick={() => scrollToSection("contact")}
+                >
+                  Contact
+                </button>
+              </li>
+            </ul>
 
-            {!islogged && (
-              <li>
-                <Link to={"/login"}>Login</Link>
-              </li>
-            )}
-            {!islogged && (
-              <li>
-                <Link to={"/signup"}>Sign Up</Link>
-              </li>
-            )}
-          </ul>
+            <div className="mobile-auth">
+              {!islogged ? (
+                <div className="mobile-auth-buttons">
+                  <Link
+                    to="/login"
+                    className="mobile-btn-login"
+                    onClick={() => setSidebar(false)}
+                  >
+                    Login
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="mobile-btn-signup"
+                    onClick={() => setSidebar(false)}
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              ) : (
+                <div className="mobile-user-menu">
+                  <Link
+                    to="/profile"
+                    className="mobile-user-link"
+                    onClick={() => setSidebar(false)}
+                  >
+                    <User className="user-icon" />
+                    <span>{username}</span>
+                  </Link>
+                  <button onClick={handleLogout} className="mobile-logout-btn">
+                    <LogOut className="logout-icon" />
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </>
