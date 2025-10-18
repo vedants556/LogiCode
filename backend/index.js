@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import mysql2 from "mysql2";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import jwt from "jsonwebtoken";
-import OpenAI from "openai";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { error } from "console";
@@ -28,6 +27,25 @@ import { error } from "console";
 dotenv.config();
 
 const jwtKey = process.env.JWT_SECRET || "aanv";
+
+// Function to resolve Railway template variables
+function resolveRailwayTemplate(value) {
+  if (!value || typeof value !== "string") return value;
+
+  // Check if it contains Railway template syntax
+  if (value.includes("${{")) {
+    console.log(`⚠️  Template variable detected: ${value}`);
+    console.log(
+      `💡 This suggests you're running locally but with Railway environment variables.`
+    );
+    console.log(
+      `💡 Please set up your local .env file with actual database credentials.`
+    );
+    return null; // Return null to indicate template variable
+  }
+
+  return value;
+}
 
 //configure mysql database
 console.log("🔍 Environment variables check:");
@@ -80,8 +98,21 @@ if (process.env.DATABASE_URL) {
 
   if (mysqlUrl) {
     console.log("📡 Using MySQL URL for database connection");
+
+    // Check if URL contains template variables
+    const resolvedUrl = resolveRailwayTemplate(mysqlUrl);
+    if (resolvedUrl === null) {
+      console.log(
+        "❌ Railway template variables detected in MySQL URL. Cannot connect to database."
+      );
+      console.log(
+        "💡 Please set up your local .env file with actual database credentials."
+      );
+      process.exit(1);
+    }
+
     try {
-      const url = new URL(mysqlUrl);
+      const url = new URL(resolvedUrl);
       dbConfig = {
         host: url.hostname,
         user: url.username,
@@ -93,24 +124,60 @@ if (process.env.DATABASE_URL) {
       console.log(
         "❌ Failed to parse MySQL URL, falling back to individual variables"
       );
+
+      // Resolve template variables for individual variables too
+      const resolvedHost = resolveRailwayTemplate(process.env.MYSQLHOST);
+      const resolvedDatabase = resolveRailwayTemplate(
+        process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE
+      );
+
+      if (resolvedHost === null || resolvedDatabase === null) {
+        console.log(
+          "❌ Railway template variables detected. Cannot connect to database."
+        );
+        console.log(
+          "💡 Please set up your local .env file with actual database credentials."
+        );
+        process.exit(1);
+      }
+
       dbConfig = {
-        host: process.env.MYSQLHOST || "localhost",
+        host: resolvedHost || "localhost",
         user: process.env.MYSQLUSER || "root",
         password: process.env.MYSQLPASSWORD,
-        database:
-          process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
+        database: resolvedDatabase || "codesync",
         port: process.env.MYSQLPORT || 3306,
       };
     }
   } else {
     // Use Railway MySQL environment variables
     console.log("📡 Using individual MySQL environment variables");
+
+    // Resolve template variables
+    const resolvedHost = resolveRailwayTemplate(process.env.MYSQLHOST);
+    const resolvedDatabase = resolveRailwayTemplate(
+      process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE
+    );
+
+    // Check if we have template variables
+    if (resolvedHost === null || resolvedDatabase === null) {
+      console.log(
+        "❌ Railway template variables detected. Cannot connect to database."
+      );
+      console.log(
+        "💡 Please set up your local .env file with actual database credentials."
+      );
+      console.log(
+        "💡 Or use Railway CLI to get the actual connection details."
+      );
+      process.exit(1);
+    }
+
     dbConfig = {
-      host: process.env.MYSQLHOST || "localhost",
+      host: resolvedHost || "localhost",
       user: process.env.MYSQLUSER || "root",
       password: process.env.MYSQLPASSWORD,
-      database:
-        process.env.MYSQLDATABASE || process.env.MYSQL_DATABASE || "codesync",
+      database: resolvedDatabase || "codesync",
       port: process.env.MYSQLPORT || 3306,
     };
   }
