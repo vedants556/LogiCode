@@ -1,7 +1,8 @@
 {
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm run build"
+    "buildCommand": "npm run build:prod",
+    "buildTimeout": 1800
   },
   "deploy": {
     "startCommand": "cd backend && npm start",

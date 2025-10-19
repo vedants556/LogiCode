@@ -7,6 +7,16 @@ export default defineConfig({
   build: {
     outDir: "../backend/public",
     emptyOutDir: true,
+    minify: "terser",
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          editor: ["@monaco-editor/react"],
+        },
+      },
+    },
   },
   server: {
     proxy: {
