@@ -324,6 +324,18 @@ app.get("/api/languages", (req, res) => {
   res.json(languageConfig);
 });
 
+// Test endpoint to check database schema
+app.get("/api/test-schema", (req, res) => {
+  const testQuery = "DESCRIBE questions";
+  db.query(testQuery, (err, result) => {
+    if (err) {
+      console.log("Error checking schema:", err);
+      return res.status(500).json({ error: "Schema check failed" });
+    }
+    res.json({ schema: result, message: "Schema check successful" });
+  });
+});
+
 //socket connections here
 
 const rooms = {};
@@ -464,8 +476,8 @@ app.post("/api/submitquestion", (req, res) => {
     //   }
 
     //first add data to questions table
-    // Add timer field (in minutes)
-    const questionQuery = `insert into questions(qname, description, defcode, checkBy, funcname, solution, qtype, timer) values ( ?, ?, ?, ?, ?, ?, ?, ?);`;
+    // Add timer field (in minutes) and multi-language support
+    const questionQuery = `insert into questions(qname, description, defcode, checkBy, funcname, solution, qtype, timer, selected_languages, language_templates, language_solutions) values ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`;
     const qValuesArray = [
       questionData.qname,
       questionData.desc,
@@ -475,14 +487,18 @@ app.post("/api/submitquestion", (req, res) => {
       questionData.solution,
       questionData.qtype,
       questionData.timer || 0,
+      JSON.stringify(questionData.selectedLanguages || []),
+      JSON.stringify(questionData.languageTemplates || {}),
+      JSON.stringify(questionData.languageSolutions || {}),
     ];
 
     db.query(questionQuery, qValuesArray, (err, result) => {
       //insert the question into database
       if (err) {
-        throw err;
+        console.log("Database error inserting question:", err);
+        return res.status(500).json({ resp: "Database error occurred" });
       }
-      // console.log(result);
+      console.log("Question inserted successfully:", result);
     });
 
     var current_question_id = 0;
@@ -589,12 +605,51 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
 
   // console.log(qid);
 
-  // Include timer in the result
-  const q = "select *, timer from questions where q_id = ? ;";
+  // Include timer and multi-language support in the result
+  // Use a more robust query that handles missing columns gracefully
+  const q = "select * from questions where q_id = ? ;";
 
   db.query(q, [qid], (err, result) => {
     if (err) {
-      throw err;
+      console.log("Database error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    // Parse JSON fields for multi-language support
+    if (result.length > 0) {
+      try {
+        // Handle NULL values and parse JSON with better error handling
+        // Check if columns exist (for backward compatibility)
+        if (result[0].hasOwnProperty("selected_languages")) {
+          result[0].selected_languages = result[0].selected_languages
+            ? JSON.parse(result[0].selected_languages)
+            : ["c"];
+        } else {
+          result[0].selected_languages = ["c"];
+        }
+
+        if (result[0].hasOwnProperty("language_templates")) {
+          result[0].language_templates = result[0].language_templates
+            ? JSON.parse(result[0].language_templates)
+            : {};
+        } else {
+          result[0].language_templates = {};
+        }
+
+        if (result[0].hasOwnProperty("language_solutions")) {
+          result[0].language_solutions = result[0].language_solutions
+            ? JSON.parse(result[0].language_solutions)
+            : {};
+        } else {
+          result[0].language_solutions = {};
+        }
+      } catch (parseError) {
+        console.log("Error parsing multi-language data:", parseError);
+        // Set defaults if parsing fails
+        result[0].selected_languages = ["c"];
+        result[0].language_templates = {};
+        result[0].language_solutions = {};
+      }
     }
 
     // console.log(result);
@@ -648,8 +703,8 @@ app.post("/api/checktc", async (req, res) => {
           fileName = `${match[1]}.java`;
         }
       } else {
-        // For C, C++, Python: append runnercode if present
-        fileContent = usercode + (testc.runnercode || "");
+        // For C, C++, Python: append runnercode if present with proper line breaks
+        fileContent = usercode + "\n" + (testc.runnercode || "");
       }
 
       const response = await fetch(baseURL, {

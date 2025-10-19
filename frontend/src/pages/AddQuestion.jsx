@@ -1,5 +1,7 @@
 import React, { useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import Navbar from "../components/Navbar/Navbar";
+import "./AddQuestion.css";
 
 function AddQuestion() {
   const timerRef = useRef(); // timer in minutes
@@ -10,7 +12,10 @@ function AddQuestion() {
   const [funcName, setFuncName] = useState(); //function name
   const [answerCode, setAnsCode] = useState(""); //solution
   const [selectedLanguage, setSelectedLanguage] = useState("c"); //selected language
+  const [selectedLanguages, setSelectedLanguages] = useState(["c"]); //multiple selected languages
   const [languages, setLanguages] = useState({}); //available languages
+  const [languageTemplates, setLanguageTemplates] = useState({}); //templates for each language
+  const [languageSolutions, setLanguageSolutions] = useState({}); //solutions for each language
 
   //form inputs
   const qname = useRef(0);
@@ -23,12 +28,21 @@ function AddQuestion() {
       const response = await fetch("/api/languages");
       const data = await response.json();
       setLanguages(data);
-      if (data[selectedLanguage]) {
-        setDefCode(data[selectedLanguage].defaultCode);
-        setAnsCode(data[selectedLanguage].defaultCode);
-      } else {
-        setDefCode(data["c"].defaultCode);
-        setAnsCode(data["c"].defaultCode);
+
+      // Initialize templates and solutions for all languages
+      const templates = {};
+      const solutions = {};
+      Object.keys(data).forEach((lang) => {
+        templates[lang] = data[lang].defaultCode;
+        solutions[lang] = data[lang].defaultCode;
+      });
+      setLanguageTemplates(templates);
+      setLanguageSolutions(solutions);
+
+      // Set default for first selected language
+      if (data[selectedLanguages[0]]) {
+        setDefCode(data[selectedLanguages[0]].defaultCode);
+        setAnsCode(data[selectedLanguages[0]].defaultCode);
       }
     }
     getLanguages();
@@ -42,6 +56,40 @@ function AddQuestion() {
       setDefCode(languages[newLanguage].defaultCode);
       setAnsCode(languages[newLanguage].defaultCode);
     }
+  };
+
+  // Handle multiple language selection
+  const handleLanguageToggle = (language) => {
+    setSelectedLanguages((prev) => {
+      if (prev.includes(language)) {
+        // Remove language
+        const newLangs = prev.filter((lang) => lang !== language);
+        if (newLangs.length === 0) {
+          // If no languages selected, keep at least one
+          return prev;
+        }
+        return newLangs;
+      } else {
+        // Add language
+        return [...prev, language];
+      }
+    });
+  };
+
+  // Update template for specific language
+  const updateLanguageTemplate = (language, code) => {
+    setLanguageTemplates((prev) => ({
+      ...prev,
+      [language]: code,
+    }));
+  };
+
+  // Update solution for specific language
+  const updateLanguageSolution = (language, code) => {
+    setLanguageSolutions((prev) => ({
+      ...prev,
+      [language]: code,
+    }));
   };
 
   // console.log(funcName);
@@ -82,6 +130,11 @@ function AddQuestion() {
     questionData.solution = answerCode;
     questionData.qtype = qtype.current.value;
 
+    // Add multi-language support
+    questionData.selectedLanguages = selectedLanguages;
+    questionData.languageTemplates = languageTemplates;
+    questionData.languageSolutions = languageSolutions;
+
     console.log(questionData);
 
     //fetch API
@@ -103,173 +156,305 @@ function AddQuestion() {
 
   //returns the main form
   return (
-    <>
-      <div className="addQuestionForm">
-        <label htmlFor="timer-input">Time Limit (minutes):</label>
-        <input
-          id="timer-input"
-          type="number"
-          min="0"
-          placeholder="Enter time in minutes (0 for no limit)"
-          ref={timerRef}
-          style={{ marginBottom: "12px", width: "200px", padding: "6px" }}
-        />
-        <h1>Add question</h1>
-        <input
-          type="text"
-          className="addQuestionText"
-          name=""
-          id=""
-          placeholder="Problem Name"
-          ref={qname}
-        />
-
-        <select name="problemDomain" ref={qtype} id="">
-          <option value="">Choose problem type</option>
-          <option value="algorithm">Algorithm</option>
-          <option value="array">Arrays</option>
-          <option value="string">Strings</option>
-          <option value="stack">Stack</option>
-          <option value="queue">Queue</option>
-          <option value="linkedlist">Linked List</option>
-          <option value="tree">Trees</option>
-          <option value="graph">Graph</option>
-        </select>
-
-        <div className="language-selector">
-          <label htmlFor="language-select">Language: </label>
-          <select
-            id="language-select"
-            value={selectedLanguage}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            style={{
-              padding: "8px",
-              margin: "10px",
-              borderRadius: "4px",
-              border: "1px solid #ccc",
-              backgroundColor: "#2d3748",
-              color: "white",
-            }}
-          >
-            {Object.keys(languages).map((lang) => (
-              <option key={lang} value={lang}>
-                {lang.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <textarea
-          name=""
-          className="addQuestionText"
-          id=""
-          placeholder="Add a description (markdown supported). Add testcases and examples too"
-          rows={15}
-          ref={desc}
-        ></textarea>
-
-        <h4>Default code which user will see</h4>
-        <Editor
-          width={"60%"}
-          height={"20vh"}
-          language={languages[selectedLanguage]?.language || "c"}
-          value={defaultCode}
-          onChange={(value, e) => {
-            setDefCode((c) => value);
-          }}
-        />
-
-        <h4>Solution</h4>
-        <Editor
-          width={"60%"}
-          height={"20vh"}
-          language={languages[selectedLanguage]?.language || "c"}
-          value={answerCode}
-          onChange={(value, e) => {
-            setAnsCode((c) => value);
-          }}
-        />
-
-        <h4>Checking method</h4>
-        <div className="selectCheckType">
-          <span className="radioButtonSpan">
-            <label>check Using AI (default) </label>
-            <input
-              type="radio"
-              name="chackingType"
-              id=""
-              onClick={() => {
-                showTC(false);
-              }}
-            />
-          </span>
-
-          <span className="radioButtonSpan">
-            <label>check Using Testcases</label>
-            <input
-              type="radio"
-              name="chackingType"
-              id=""
-              onClick={() => {
-                showTC(true);
-              }}
-            />
-          </span>
-        </div>
-
-        <button className="submitQuestion" onClick={saveQuestion}>
-          Submit question
-        </button>
-
-        {tc && (
-          <span>
-            {" "}
-            <h4>Enter the name of the function</h4>{" "}
-            <input
-              style={{ width: "400px" }}
-              type="text"
-              placeholder="Enter the function name"
-              onChange={(e) => {
-                setFuncName(e.target.value);
-              }}
-            ></input>{" "}
-          </span>
-        )}
-        {tc && (
-          <AddTestCase
-            tcIndex={tcIndex}
-            setTCIndex={setTCIndex}
-            funcName={funcName}
-            answerCode={answerCode}
-            setTestcases={setTestcases}
-            selectedLanguage={selectedLanguage}
-          />
-        )}
-
-        {tc && (
-          <div className="tcRoll">
-            <p>Testcases: </p>
-            {testCases.map((tc) => {
-              return (
-                <div className="tcs" key={tc.no}>
-                  <ul>
-                    <li>Input : {tc.ip}</li>
-                    <li>Input Type: {tc.ipType}</li>
-                    <li>Expected Output: {tc.op}</li>
-                  </ul>
-                  <button
-                    className="deletetc"
-                    onClick={() => deleteTestCase(tc.no)}
-                  >
-                    Delete testcase
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        )}
+    <div className="add-question-container">
+      <div className="add-question-background">
+        <div className="gradient-orb orb-1"></div>
+        <div className="gradient-orb orb-2"></div>
+        <div className="gradient-orb orb-3"></div>
       </div>
-    </>
+
+      <Navbar />
+
+      <div className="add-question-content">
+        <div className="add-question-header">
+          <h1 className="page-title">Add New Question</h1>
+          <p className="page-subtitle">
+            Create a new coding problem for your platform
+          </p>
+        </div>
+
+        <div className="add-question-form">
+          {/* Basic Information Section */}
+          <div className="form-section">
+            <h3 className="section-title">Basic Information</h3>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="problem-name">Problem Name</label>
+                <input
+                  type="text"
+                  id="problem-name"
+                  className="form-input"
+                  placeholder="Enter problem name"
+                  ref={qname}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="problem-type">Problem Type</label>
+                <select
+                  name="problemDomain"
+                  ref={qtype}
+                  id="problem-type"
+                  className="form-select"
+                >
+                  <option value="">Choose problem type</option>
+                  <option value="algorithm">Algorithm</option>
+                  <option value="array">Arrays</option>
+                  <option value="string">Strings</option>
+                  <option value="stack">Stack</option>
+                  <option value="queue">Queue</option>
+                  <option value="linkedlist">Linked List</option>
+                  <option value="tree">Trees</option>
+                  <option value="graph">Graph</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="timer-input">Time Limit (minutes)</label>
+                <input
+                  id="timer-input"
+                  type="number"
+                  min="0"
+                  placeholder="Enter time in minutes (0 for no limit)"
+                  ref={timerRef}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="language-select">Default Language</label>
+                <select
+                  id="language-select"
+                  value={selectedLanguage}
+                  onChange={(e) => handleLanguageChange(e.target.value)}
+                  className="form-select"
+                >
+                  {Object.keys(languages).map((lang) => (
+                    <option key={lang} value={lang}>
+                      {lang.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Multi-Language Selection */}
+            <div className="form-group">
+              <label>Supported Languages</label>
+              <div className="language-checkboxes">
+                {Object.keys(languages).map((lang) => (
+                  <label key={lang} className="language-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedLanguages.includes(lang)}
+                      onChange={() => handleLanguageToggle(lang)}
+                    />
+                    <span className="checkbox-custom"></span>
+                    <span className="language-label">{lang.toUpperCase()}</span>
+                  </label>
+                ))}
+              </div>
+              <p className="form-help">
+                Select all languages you want to support for this problem
+              </p>
+            </div>
+          </div>
+
+          {/* Description Section */}
+          <div className="form-section">
+            <h3 className="section-title">Problem Description</h3>
+            <div className="form-group">
+              <label htmlFor="description">
+                Description (Markdown Supported)
+              </label>
+              <textarea
+                name=""
+                id="description"
+                className="form-textarea"
+                placeholder="Add a description (markdown supported). Add testcases and examples too"
+                rows={8}
+                ref={desc}
+              ></textarea>
+            </div>
+          </div>
+
+          {/* Code Section - Dynamic for each selected language */}
+          <div className="form-section">
+            <h3 className="section-title">Code Templates & Solutions</h3>
+            <p className="section-description">
+              Define code templates and solutions for each selected language
+            </p>
+
+            {selectedLanguages.map((lang) => (
+              <div key={lang} className="language-code-section">
+                <div className="language-header">
+                  <h4 className="language-title">{lang.toUpperCase()} Code</h4>
+                  <span className="language-badge">{lang}</span>
+                </div>
+
+                <div className="code-editor-group">
+                  <div className="code-editor-item">
+                    <h5 className="code-editor-title">Default Template</h5>
+                    <div className="code-editor-container">
+                      <Editor
+                        width="100%"
+                        height="200px"
+                        language={languages[lang]?.language || lang}
+                        value={languageTemplates[lang] || ""}
+                        onChange={(value) =>
+                          updateLanguageTemplate(lang, value)
+                        }
+                        theme="vs-dark"
+                        options={{
+                          fontSize: 14,
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          wordWrap: "on",
+                          lineNumbers: "on",
+                          folding: true,
+                          bracketPairColorization: { enabled: true },
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="code-editor-item">
+                    <h5 className="code-editor-title">Solution Code</h5>
+                    <div className="code-editor-container">
+                      <Editor
+                        width="100%"
+                        height="200px"
+                        language={languages[lang]?.language || lang}
+                        value={languageSolutions[lang] || ""}
+                        onChange={(value) =>
+                          updateLanguageSolution(lang, value)
+                        }
+                        theme="vs-dark"
+                        options={{
+                          fontSize: 14,
+                          minimap: { enabled: false },
+                          scrollBeyondLastLine: false,
+                          automaticLayout: true,
+                          wordWrap: "on",
+                          lineNumbers: "on",
+                          folding: true,
+                          bracketPairColorization: { enabled: true },
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Checking Method Section */}
+          <div className="form-section">
+            <h3 className="section-title">Checking Method</h3>
+            <div className="checking-method-group">
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="checkingType"
+                    value="ai"
+                    defaultChecked
+                    onChange={() => showTC(false)}
+                  />
+                  <span className="radio-custom"></span>
+                  <div className="radio-content">
+                    <h4>AI Checking (Recommended)</h4>
+                    <p>Use AI to evaluate student solutions</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="radio-group">
+                <label className="radio-label">
+                  <input
+                    type="radio"
+                    name="checkingType"
+                    value="testcase"
+                    onChange={() => showTC(true)}
+                  />
+                  <span className="radio-custom"></span>
+                  <div className="radio-content">
+                    <h4>Test Case Checking</h4>
+                    <p>Use predefined test cases to evaluate solutions</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Test Case Section */}
+          {tc && (
+            <div className="form-section">
+              <h3 className="section-title">Test Cases</h3>
+
+              <div className="form-group">
+                <label htmlFor="function-name">Function Name</label>
+                <input
+                  id="function-name"
+                  type="text"
+                  placeholder="Enter the function name"
+                  onChange={(e) => setFuncName(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <AddTestCase
+                tcIndex={tcIndex}
+                setTCIndex={setTCIndex}
+                funcName={funcName}
+                answerCode={answerCode}
+                setTestcases={setTestcases}
+                selectedLanguage={selectedLanguage}
+              />
+
+              {testCases.length > 0 && (
+                <div className="testcases-list">
+                  <h4>Added Test Cases</h4>
+                  {testCases.map((tc) => (
+                    <div className="testcase-item" key={tc.no}>
+                      <div className="testcase-content">
+                        <div className="testcase-field">
+                          <strong>Input:</strong> {tc.ip}
+                        </div>
+                        <div className="testcase-field">
+                          <strong>Input Type:</strong> {tc.ipType}
+                        </div>
+                        <div className="testcase-field">
+                          <strong>Expected Output:</strong> {tc.op}
+                        </div>
+                      </div>
+                      <button
+                        className="delete-testcase-btn"
+                        onClick={() => deleteTestCase(tc.no)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Submit Section */}
+          <div className="form-section submit-section">
+            <button className="submit-question-btn" onClick={saveQuestion}>
+              <span className="btn-icon">📝</span>
+              Submit Question
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -326,14 +511,27 @@ function AddTestCase(props) {
 
   async function checkTcValidity() {
     //check if testcase is valid or not
-    const fcode = props.answerCode + "\n" + code;
-    console.log(fcode);
+    // For test case validation, we need to create a complete program
+    // that includes the function definition and a main function that calls it
+    const functionDefinition = props.answerCode;
+    const driverCode = code;
+
+    // Create complete code by combining function definition with driver code
+    let completeCode = "";
+    if (props.selectedLanguage === "python") {
+      completeCode = functionDefinition + "\n" + driverCode;
+    } else {
+      // For C/C++/Java, we need to ensure proper structure
+      completeCode = functionDefinition + "\n" + driverCode;
+    }
+
+    console.log("Complete code for validation:", completeCode);
     setRemark("...");
     setStatus("...");
 
     var c = {};
     c.op = op.current.value;
-    c.code = fcode;
+    c.code = completeCode;
     c.language = props.selectedLanguage || "c";
 
     console.log(c);
@@ -358,51 +556,113 @@ function AddTestCase(props) {
   }
 
   return (
-    <div className="testCases">
-      <h3>Add Testcase</h3>
-      <p>Input (To be displayed)</p>
-      <input
-        type="text"
-        placeholder="input (to be displayed in testcase"
-        ref={ip}
-      />
-      <select type="text" placeholder="ip type" ref={ipType}>
-        <option value="string">String</option>
-        <option value="int">int</option>
-        <option value="char">char</option>
-        <option value="float">float</option>
-        <option value="void">void</option>
-        <option value="struct">struct</option>
-      </select>
-      <br />
-      <p>Expected output</p>
-      <textarea type="text" placeholder="desired output" ref={op} />
-      <select name="optype" id="optype" ref={opType}>
-        <option value="string">String</option>
-        <option value="int">int</option>
-        <option value="char">char</option>
-        <option value="float">float</option>
-        <option value="void">void</option>
-        <option value="struct">struct</option>
-      </select>
-      <br />
-      <p>Driver code (int main function) </p>
-      <Editor
-        language={props.selectedLanguage}
-        height={"20vh"}
-        value={code}
-        onChange={(value, e) => setCode(value)}
-      />
-      <button className="testcasecheckbutton" onClick={checkTcValidity}>
-        check testcase
-      </button>
-      <button className="testcasecheckbutton" onClick={savetestCase}>
-        save
-      </button>
-      <p>Admin's terminal</p>
-      <div className="terminal">
-        <p>{status}</p>
-        <pre>{remark}</pre>
+    <div className="add-testcase-container">
+      <h4 className="testcase-title">Add New Test Case</h4>
+
+      <div className="testcase-form">
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="testcase-input">Input (Displayed to User)</label>
+            <input
+              type="text"
+              id="testcase-input"
+              placeholder="Enter input value"
+              ref={ip}
+              className="form-input"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="input-type">Input Type</label>
+            <select id="input-type" ref={ipType} className="form-select">
+              <option value="string">String</option>
+              <option value="int">int</option>
+              <option value="char">char</option>
+              <option value="float">float</option>
+              <option value="void">void</option>
+              <option value="struct">struct</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="expected-output">Expected Output</label>
+            <textarea
+              id="expected-output"
+              placeholder="Enter expected output"
+              ref={op}
+              className="form-textarea"
+              rows={3}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="output-type">Output Type</label>
+            <select
+              name="optype"
+              id="output-type"
+              ref={opType}
+              className="form-select"
+            >
+              <option value="string">String</option>
+              <option value="int">int</option>
+              <option value="char">char</option>
+              <option value="float">float</option>
+              <option value="void">void</option>
+              <option value="struct">struct</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="driver-code">Driver Code (Main Function)</label>
+          <div className="code-editor-container">
+            <Editor
+              language={props.selectedLanguage}
+              height="150px"
+              value={code}
+              onChange={(value, e) => setCode(value)}
+              theme="vs-dark"
+              options={{
+                fontSize: 14,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                automaticLayout: true,
+                wordWrap: "on",
+                lineNumbers: "on",
+                folding: true,
+                bracketPairColorization: { enabled: true },
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="testcase-actions">
+          <button className="testcase-check-btn" onClick={checkTcValidity}>
+            <span className="btn-icon">🔍</span>
+            Check Test Case
+          </button>
+          <button className="testcase-save-btn" onClick={savetestCase}>
+            <span className="btn-icon">💾</span>
+            Save Test Case
+          </button>
+        </div>
+
+        <div className="testcase-terminal">
+          <h5>Validation Result</h5>
+          <div className="terminal-content">
+            <div className="terminal-status">
+              <strong>Status:</strong> {status || "Not checked"}
+            </div>
+            {remark && (
+              <div className="terminal-output">
+                <strong>Output:</strong>
+                <pre>{remark}</pre>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

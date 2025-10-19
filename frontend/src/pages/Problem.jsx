@@ -27,6 +27,7 @@ function Problem() {
 
   const [selectedLanguage, setSelectedLanguage] = useState("c");
   const [languages, setLanguages] = useState({});
+  const [availableLanguages, setAvailableLanguages] = useState({});
   const [value, setValue] = useState("");
   const editorRef = useRef("");
   const [solved, setSolved] = useState(false);
@@ -71,6 +72,26 @@ function Problem() {
       setProbData(data);
       setValue(data[0].defcode);
       setCheckBy(data[0].checkBy);
+
+      // Filter available languages based on problem's selected languages
+      if (data[0].selected_languages && data[0].selected_languages.length > 0) {
+        const filteredLanguages = {};
+        data[0].selected_languages.forEach((lang) => {
+          if (languages[lang]) {
+            filteredLanguages[lang] = languages[lang];
+          }
+        });
+        setAvailableLanguages(filteredLanguages);
+
+        // Set default language to first available language
+        if (data[0].selected_languages.length > 0) {
+          setSelectedLanguage(data[0].selected_languages[0]);
+        }
+      } else {
+        // Fallback to all languages if no specific languages are set
+        setAvailableLanguages(languages);
+      }
+
       // Timer logic: if timer is set, start countdown
       if (data[0].timer && data[0].timer > 0) {
         const seconds = parseInt(data[0].timer) * 60;
@@ -110,10 +131,64 @@ function Problem() {
 
     checkLogged();
     getLanguages();
-    getProblemInfo();
     getTestcases();
     checkSolved();
   }, []);
+
+  // Load problem info after languages are loaded
+  useEffect(() => {
+    if (Object.keys(languages).length > 0) {
+      async function getProblemInfo() {
+        const response = await fetch("/api/getprobleminfo/" + qid);
+        const data = await response.json();
+        setProbData(data);
+        setCheckBy(data[0].checkBy);
+
+        // Filter available languages based on problem's selected languages
+        if (
+          data[0].selected_languages &&
+          data[0].selected_languages.length > 0
+        ) {
+          const filteredLanguages = {};
+          data[0].selected_languages.forEach((lang) => {
+            if (languages[lang]) {
+              filteredLanguages[lang] = languages[lang];
+            }
+          });
+          setAvailableLanguages(filteredLanguages);
+
+          // Set default language to first available language
+          if (data[0].selected_languages.length > 0) {
+            const firstLang = data[0].selected_languages[0];
+            setSelectedLanguage(firstLang);
+
+            // Set the language-specific template as the initial code
+            if (
+              data[0].language_templates &&
+              data[0].language_templates[firstLang]
+            ) {
+              setValue(data[0].language_templates[firstLang]);
+            } else {
+              // Fallback to default code if no language template exists
+              setValue(data[0].defcode);
+            }
+          }
+        } else {
+          // Fallback to all languages if no specific languages are set
+          setAvailableLanguages(languages);
+          setValue(data[0].defcode);
+        }
+
+        // Timer logic: if timer is set, start countdown
+        if (data[0].timer && data[0].timer > 0) {
+          const seconds = parseInt(data[0].timer) * 60;
+          setTimer(seconds);
+          setTimeLeft(seconds);
+        }
+      }
+      getProblemInfo();
+    }
+  }, [languages, qid]);
 
   // Timer countdown effect
   useEffect(() => {
@@ -149,8 +224,17 @@ function Problem() {
   // Handle language change
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
-    if (languages[newLanguage]) {
-      setValue(languages[newLanguage].defaultCode);
+
+    // Use language-specific template if available
+    if (
+      problemData.length > 0 &&
+      problemData[0].language_templates &&
+      problemData[0].language_templates[newLanguage]
+    ) {
+      setValue(problemData[0].language_templates[newLanguage]);
+    } else if (availableLanguages[newLanguage]) {
+      // Fallback to default language template
+      setValue(availableLanguages[newLanguage].defaultCode);
     }
   };
 
@@ -310,7 +394,7 @@ function Problem() {
                       onChange={(e) => handleLanguageChange(e.target.value)}
                       className="language-select"
                     >
-                      {Object.keys(languages).map((lang) => (
+                      {Object.keys(availableLanguages).map((lang) => (
                         <option key={lang} value={lang}>
                           {lang.toUpperCase()}
                         </option>
@@ -324,7 +408,9 @@ function Problem() {
                 <Editor
                   height="50vh"
                   width="100%"
-                  language={languages[selectedLanguage]?.language || "c"}
+                  language={
+                    availableLanguages[selectedLanguage]?.language || "c"
+                  }
                   value={value}
                   onChange={(value, e) => setValue((e1) => value)}
                   className="code-editor"

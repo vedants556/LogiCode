@@ -209,9 +209,11 @@ function Output(props) {
       const data = await response.json();
       let o = data.run.stderr || data.run.stdout;
       setOP2(o);
-      // console.log(data);
 
-      console.log(data.remark);
+      // Show the output in the testcases tab
+      setTR("T");
+
+      console.log("Execution result:", data);
     } catch (error) {
       alert("an error occurred, please try again later");
       console.log(error);
@@ -268,6 +270,16 @@ function Output(props) {
                 {props.testcases?.length || 0} test cases
               </span>
             </div>
+
+            {/* Show run output if available */}
+            {output2 && output2 !== "Your output here" && (
+              <div className="run-output">
+                <h4>Run Output:</h4>
+                <div className="output-content">
+                  <pre>{output2}</pre>
+                </div>
+              </div>
+            )}
 
             <div className="testcases-list">
               {props.testcases?.map((tc, index) => (
