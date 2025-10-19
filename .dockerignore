@@ -1,22 +1,60 @@
+# Dependencies
 node_modules
 npm-debug.log
+yarn-error.log
+
+# Git
 .git
 .gitignore
+.gitattributes
+
+# Documentation
 README.md
-.env
-.nyc_output
-coverage
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.DS_Store
-*.log
-dist
-build
-.cache
+*.md
+docs/
+
+# Environment files
+.env*
+!.env.example
+
+# IDE and editor files
 .vscode
 .idea
 *.swp
 *.swo
 *~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+.nyc_output
+
+# Build outputs
+dist
+build
+.cache
+
+# Temporary folders
+tmp/
+temp/
+
+# Railway specific
+.railway/
