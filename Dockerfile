@@ -1,29 +1,5 @@
-# Multi-stage build for optimized production image
-FROM node:20-alpine AS base
-
-# Install dependencies for building
-RUN apk add --no-cache python3 make g++
-
-WORKDIR /app
-
-# Copy package files first for better caching
-COPY package*.json ./
-COPY backend/package*.json ./backend/
-COPY frontend/package*.json ./frontend/
-
-# Install all dependencies (including dev dependencies for building)
-RUN npm ci --no-audit --no-fund && \
-    npm --prefix backend ci --no-audit --no-fund && \
-    npm --prefix frontend ci --no-audit --no-fund
-
-# Copy source code
-COPY . .
-
-# Build frontend
-RUN npm --prefix frontend run build
-
-# Production stage - minimal image
-FROM node:20-alpine AS production
+# Simplified single-stage build for backend only
+FROM node:20-alpine
 
 # Install dumb-init for proper signal handling
 RUN apk add --no-cache dumb-init
@@ -38,9 +14,8 @@ COPY backend/package*.json ./backend/
 RUN npm ci --only=production --no-audit --no-fund --ignore-scripts && \
     npm --prefix backend ci --only=production --no-audit --no-fund
 
-# Copy backend source and built frontend
+# Copy backend source and pre-built frontend
 COPY backend/ ./backend/
-COPY --from=base /app/backend/public ./backend/public
 
 # Set working directory to backend
 WORKDIR /app/backend

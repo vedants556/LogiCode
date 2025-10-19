@@ -58,3 +58,11 @@ temp/
 
 # Railway specific
 .railway/
+
+# Frontend source files (we only need the built files)
+frontend/src/
+frontend/public/
+frontend/index.html
+frontend/vite.config.js
+frontend/package.json
+frontend/package-lock.json
