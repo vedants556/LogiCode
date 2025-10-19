@@ -3,7 +3,12 @@ nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "npm --prefix backend ci --only=production --no-audit --no-fund"
+  "cd backend && npm ci --only=production --no-audit --no-fund"
+]
+
+[phases.build]
+cmds = [
+  "echo 'Frontend already built locally'"
 ]
 
 [start]
