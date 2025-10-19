@@ -10,7 +10,7 @@
     "start": "npm --prefix backend run start",
     "postinstall": "npm --prefix backend install && npm --prefix frontend install",
     "heroku-postbuild": "npm run build",
-    "build:prod": "npm --prefix frontend run build --mode production"
+    "build:prod": "npm --prefix frontend run build"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
