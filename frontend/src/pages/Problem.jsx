@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
+import ReactMarkdown from "react-markdown";
 import Output from "../components/Output";
 import Description from "../components/Description";
 import { useNavigate, useParams } from "react-router-dom";
@@ -34,6 +35,11 @@ function Problem() {
   const [checkBy, setCheckBy] = useState("");
   const [userid, setUserId] = useState(0);
   const [desc1, setDesc1] = useState("");
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState("");
+  const [leftPanelTab, setLeftPanelTab] = useState("description");
+  const [aiResponse, setAiResponse] = useState("");
+  const [showAI, setShowAI] = useState(false);
   const [logged, islogged] = useState(true);
   const [socket, setSocket] = useState(null);
   const [live, setLive] = useState(false);
@@ -128,8 +134,16 @@ function Problem() {
 
   // Auto-submit function
   async function handleAutoSubmit() {
-    alert("Time is up! Your code will be submitted automatically.");
-    // TODO: Trigger Output's submit logic here if possible
+    setNotificationMessage(
+      "⏰ Time is up! Your code will be submitted automatically."
+    );
+    setShowNotification(true);
+
+    // Auto-submit the code
+    setTimeout(() => {
+      // Trigger submit logic
+      setShowNotification(false);
+    }, 3000);
   }
 
   // Handle language change
@@ -140,7 +154,32 @@ function Problem() {
     }
   };
 
-  // console.log(value);
+  // AI Help function
+  async function getAIHelp() {
+    setShowAI(true);
+    setAiResponse("AI is analyzing your code...");
+
+    try {
+      const response = await fetch("/api/aihelp", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: value,
+          description: problemData[0]?.description || "",
+          language: selectedLanguage || "c",
+        }),
+      });
+
+      const data = await response.json();
+      setAiResponse(data.response);
+    } catch (error) {
+      console.error("Error getting AI help:", error);
+      setAiResponse("An error occurred while getting AI assistance");
+    }
+  }
+
   return (
     <div className="problem-container">
       <div className="problem-background">
@@ -156,55 +195,134 @@ function Problem() {
           <div className="timer-display">
             <div className="timer-icon">⏰</div>
             <div className="timer-text">
-              Time Left: {Math.floor(timeLeft / 60)}:
+              {Math.floor(timeLeft / 60)}:
               {(timeLeft % 60).toString().padStart(2, "0")}
             </div>
           </div>
         )}
 
-        <div className="problem-layout">
-          <div className="problem-sidebar">
-            <Description
-              setDesc1={setDesc1}
-              solved={solved}
-              value={value}
-              problemData={problemData}
-              setValue={setValue}
-              socket={socket}
-              setSocket={setSocket}
-              live={live}
-              setLive={setLive}
-              username={username}
-              setUname={setUname}
-            />
+        {showNotification && (
+          <div className="notification-overlay">
+            <div className="notification">
+              <div className="notification-content">
+                <span className="notification-icon">⏰</span>
+                <span className="notification-message">
+                  {notificationMessage}
+                </span>
+                <button
+                  className="notification-close"
+                  onClick={() => setShowNotification(false)}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="leetcode-layout">
+          {/* Left Panel - Problem Description */}
+          <div className="problem-description-panel">
+            <div className="description-header">
+              <div className="problem-title-section">
+                <h2 className="problem-title">
+                  {problemData[0]?.qname || "Loading..."}
+                </h2>
+                <div className="problem-meta">
+                  <span
+                    className={`difficulty-badge ${
+                      problemData[0]?.difficulty?.toLowerCase() || "medium"
+                    }`}
+                  >
+                    {problemData[0]?.difficulty || "Medium"}
+                  </span>
+                  <span className="problem-type">
+                    {problemData[0]?.qtype || "Algorithm"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Left Panel Tabs */}
+            <div className="left-panel-tabs">
+              <button
+                className={`left-tab-button ${
+                  leftPanelTab === "description" ? "active" : ""
+                }`}
+                onClick={() => setLeftPanelTab("description")}
+              >
+                Description
+              </button>
+              <button
+                className={`left-tab-button ${
+                  leftPanelTab === "ai" ? "active" : ""
+                }`}
+                onClick={() => setLeftPanelTab("ai")}
+              >
+                🤖 AI Help
+              </button>
+            </div>
+
+            <div className="left-panel-content">
+              {leftPanelTab === "description" ? (
+                <div className="description-content">
+                  <div className="problem-statement">
+                    <div className="statement-text">
+                      <ReactMarkdown>
+                        {problemData[0]?.description ||
+                          "Loading problem description..."}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="ai-help-content">
+                  <div className="ai-help-header">
+                    <h3>AI Assistant</h3>
+                    <button className="get-ai-help-btn" onClick={getAIHelp}>
+                      Get AI Help
+                    </button>
+                  </div>
+
+                  {showAI && (
+                    <div className="ai-response-container">
+                      <div className="ai-response">{aiResponse}</div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="problem-main">
+          {/* Right Panel - Code Editor & Output */}
+          <div className="coding-panel">
             <div className="editor-section">
               <div className="editor-header">
-                <h3 className="editor-title">Code Editor</h3>
-                <div className="language-selector">
-                  <label htmlFor="language-select" className="language-label">
-                    Language:
-                  </label>
-                  <select
-                    id="language-select"
-                    value={selectedLanguage}
-                    onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="language-select"
-                  >
-                    {Object.keys(languages).map((lang) => (
-                      <option key={lang} value={lang}>
-                        {lang.toUpperCase()}
-                      </option>
-                    ))}
-                  </select>
+                <div className="editor-title-section">
+                  <h3 className="editor-title">Code Editor</h3>
+                  <div className="language-selector">
+                    <label htmlFor="language-select" className="language-label">
+                      Language:
+                    </label>
+                    <select
+                      id="language-select"
+                      value={selectedLanguage}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
+                      className="language-select"
+                    >
+                      {Object.keys(languages).map((lang) => (
+                        <option key={lang} value={lang}>
+                          {lang.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <div className="editor-container">
                 <Editor
-                  height="60vh"
+                  height="50vh"
                   width="100%"
                   language={languages[selectedLanguage]?.language || "c"}
                   value={value}
