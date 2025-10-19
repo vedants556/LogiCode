@@ -34,8 +34,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY backend/package*.json ./backend/
 
-# Install only production dependencies
-RUN npm ci --only=production --no-audit --no-fund && \
+# Install only production dependencies (skip postinstall script)
+RUN npm ci --only=production --no-audit --no-fund --ignore-scripts && \
     npm --prefix backend ci --only=production --no-audit --no-fund
 
 # Copy backend source and built frontend
