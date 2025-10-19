@@ -1,15 +1,15 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "npm"]
+nixPkgs = ["nodejs_20"]
 
 [phases.install]
 cmds = [
-  "npm ci --only=production --no-audit --no-fund --prefer-offline",
-  "npm --prefix frontend ci --only=production --no-audit --no-fund --prefer-offline"
+  "npm ci --only=production --no-audit --no-fund",
+  "npm --prefix frontend ci --only=production --no-audit --no-fund"
 ]
 
 [phases.build]
 cmds = [
-  "npm --prefix frontend run build --mode production"
+  "npm --prefix frontend run build"
 ]
 
 [start]
