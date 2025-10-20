@@ -102,6 +102,42 @@
   letter-spacing: 1px;
 }
 
+/* Timer Warning Styles */
+.timer-warning {
+  background: rgba(255, 0, 0, 0.2) !important;
+  border: 2px solid #ff0000 !important;
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
+  animation: urgent-pulse 0.5s infinite !important;
+}
+
+.timer-warning-text {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ff0000;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  animation: urgent-pulse 0.5s infinite;
+  z-index: 1001;
+}
+
+@keyframes urgent-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
 @keyframes pulse {
   0%,
   100% {

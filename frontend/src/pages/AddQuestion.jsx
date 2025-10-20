@@ -541,6 +541,7 @@ if __name__ == "__main__":
     testCaseInfo.ip = ip.current.value.trim();
     testCaseInfo.ipType = ipType.current.value;
     testCaseInfo.runnercode = code;
+    testCaseInfo.language = props.selectedLanguage; // Add language field
 
     console.log("Saving test case:", testCaseInfo);
 

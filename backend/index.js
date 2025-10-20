@@ -532,7 +532,7 @@ app.post("/api/submitquestion", (req, res) => {
           // +------------+--------------+------+-----+---------+----------------+
 
           testcases.forEach((testcase) => {
-            const query = `INSERT INTO testcases (tno, q_id, runnercode, ip, iptype, op, optype) VALUES (?, ?, ?, ?, ?, ?, ?);`;
+            const query = `INSERT INTO testcases (tno, q_id, runnercode, ip, iptype, op, optype, language) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`;
 
             db.query(
               query,
@@ -544,6 +544,7 @@ app.post("/api/submitquestion", (req, res) => {
                 testcase.ipType,
                 testcase.op,
                 testcase.opType,
+                testcase.language || "c", // Default to 'c' if language not specified
               ],
               (err, res) => {
                 if (err) {
@@ -661,14 +662,40 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
 app.post("/api/runtestcases", async (req, res) => {
   const { usercode, qid, language } = req.body;
 
+  console.log(
+    "🔍 DEBUG: Running test cases for qid:",
+    qid,
+    "language:",
+    language
+  );
+
   try {
-    // Get test cases from database
+    // Get test cases from database filtered by language
     const testcases = await new Promise((resolve, reject) => {
       db.query(
-        "SELECT * FROM testcases WHERE q_id = ?",
-        [qid],
+        "SELECT * FROM testcases WHERE q_id = ? AND language = ?",
+        [qid, language],
         (err, result) => {
           if (err) return reject(err);
+          console.log(
+            "🔍 DEBUG: Retrieved test cases for language",
+            language,
+            ":",
+            result.length,
+            "total test cases"
+          );
+          console.log(
+            "🔍 DEBUG: Test cases details:",
+            result.map((tc) => ({
+              t_id: tc.t_id,
+              language: tc.language,
+              runnercode: tc.runnercode
+                ? tc.runnercode.substring(0, 50) + "..."
+                : "null",
+              ip: tc.ip,
+              op: tc.op,
+            }))
+          );
           resolve(result);
         }
       );
@@ -763,15 +790,41 @@ app.post("/api/checktc", async (req, res) => {
   let usercode = req.body.usercode;
   let language = req.body.language || "c";
 
+  console.log(
+    "🔍 DEBUG: Checking test cases for qid:",
+    req.body.qid,
+    "language:",
+    language
+  );
+
   try {
     const result = await new Promise((resolve, reject) => {
       db.query(
-        "SELECT * FROM testcases WHERE q_id = ? ;",
-        [req.body.qid],
+        "SELECT * FROM testcases WHERE q_id = ? AND language = ? ;",
+        [req.body.qid, language],
         (err, result) => {
           if (err) {
             return reject(err);
           }
+          console.log(
+            "🔍 DEBUG: Retrieved test cases for checktc language",
+            language,
+            ":",
+            result.length,
+            "total test cases"
+          );
+          console.log(
+            "🔍 DEBUG: Test cases details:",
+            result.map((tc) => ({
+              t_id: tc.t_id,
+              language: tc.language,
+              runnercode: tc.runnercode
+                ? tc.runnercode.substring(0, 50) + "..."
+                : "null",
+              ip: tc.ip,
+              op: tc.op,
+            }))
+          );
           resolve(result);
         }
       );

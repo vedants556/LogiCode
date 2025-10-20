@@ -214,10 +214,79 @@ function Problem() {
     );
     setShowNotification(true);
 
-    // Auto-submit the code
-    setTimeout(() => {
-      // Trigger submit logic
-      setShowNotification(false);
+    // Auto-submit the code after showing notification
+    setTimeout(async () => {
+      try {
+        // Trigger the same submit logic as the submit button
+        const checkData = {
+          usercode: value,
+          qid: qid,
+          language: selectedLanguage || "c",
+        };
+
+        console.log("🔄 Auto-submitting code:", checkData);
+
+        if (checkBy === "testcase") {
+          // Use test case checking
+          const response = await fetch("/api/checktc", {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(checkData),
+          });
+
+          const data = await response.json();
+          console.log("Auto-submit result:", data);
+
+          if (data.remark === "correct") {
+            setSolved(true);
+            setNotificationMessage(
+              "✅ Auto-submit successful! Problem solved!"
+            );
+          } else {
+            setNotificationMessage(
+              "❌ Auto-submit completed. Check results below."
+            );
+          }
+        } else {
+          // Use AI checking
+          const aiData = {
+            code: value,
+            desc: problemData[0]?.description || "",
+            userid: userid,
+            qid: qid,
+            language: selectedLanguage || "c",
+          };
+
+          const response = await fetch("/api/checkbyai", {
+            method: "post",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(aiData),
+          });
+
+          const aiResult = await response.json();
+          console.log("Auto-submit AI result:", aiResult);
+
+          if (aiResult.response.includes("pass")) {
+            setSolved(true);
+            setNotificationMessage(
+              "✅ Auto-submit successful! Problem solved!"
+            );
+          } else {
+            setNotificationMessage(
+              "❌ Auto-submit completed. Check results below."
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Auto-submit error:", error);
+        setNotificationMessage("❌ Auto-submit failed. Please try again.");
+      } finally {
+        setShowNotification(false);
+      }
     }, 3000);
   }
 
@@ -276,12 +345,19 @@ function Problem() {
 
       <div className="problem-content">
         {timer && timeLeft !== null && (
-          <div className="timer-display">
+          <div
+            className={`timer-display ${timeLeft <= 60 ? "timer-warning" : ""}`}
+          >
             <div className="timer-icon">⏰</div>
             <div className="timer-text">
               {Math.floor(timeLeft / 60)}:
               {(timeLeft % 60).toString().padStart(2, "0")}
             </div>
+            {timeLeft <= 60 && timeLeft > 0 && (
+              <div className="timer-warning-text">
+                ⚠️ Less than 1 minute remaining!
+              </div>
+            )}
           </div>
         )}
 
