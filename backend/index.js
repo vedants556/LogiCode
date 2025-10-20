@@ -657,6 +657,102 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
   });
 });
 
+// Run test cases (like leetcode - shows all results without submitting)
+app.post("/api/runtestcases", async (req, res) => {
+  const { usercode, qid, language } = req.body;
+
+  try {
+    // Get test cases from database
+    const testcases = await new Promise((resolve, reject) => {
+      db.query(
+        "SELECT * FROM testcases WHERE q_id = ?",
+        [qid],
+        (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        }
+      );
+    });
+
+    if (!testcases || testcases.length === 0) {
+      return res.json({ error: "No test cases found for this problem" });
+    }
+
+    const baseURL = "https://emkc.org/api/v2/piston/execute";
+    const langConfig = languageConfig[language] || languageConfig.c;
+    const results = [];
+
+    // Run code against each test case
+    for (const testc of testcases) {
+      let fileName = `my_cool_code.${langConfig.fileExtension}`;
+      let fileContent = "";
+
+      if (language === "java") {
+        fileContent = usercode;
+        const match = usercode.match(/class\s+(\w+)/);
+        if (match) {
+          fileName = `${match[1]}.java`;
+        }
+      } else {
+        // Combine user code with runner code
+        fileContent = usercode + "\n" + (testc.runnercode || "");
+      }
+
+      try {
+        const response = await fetch(baseURL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            language: langConfig.language,
+            version: langConfig.version,
+            aliases: langConfig.aliases,
+            runtime: langConfig.runtime,
+            files: [
+              {
+                name: fileName,
+                content: fileContent,
+              },
+            ],
+            stdin: testc.ip || "",
+            args: [],
+            compile_timeout: 10000,
+            run_timeout: 3000,
+          }),
+        });
+
+        const data = await response.json();
+        const actualOutput = (data.run.stdout || "").trim();
+        const expectedOutput = (testc.op || "").trim();
+
+        results.push({
+          input: testc.ip,
+          expected: expectedOutput,
+          actual: actualOutput,
+          passed: actualOutput === expectedOutput && !data.run.stderr,
+          error: data.run.stderr || data.compile?.stderr || null,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      } catch (err) {
+        results.push({
+          input: testc.ip,
+          expected: testc.op,
+          actual: "",
+          passed: false,
+          error: "Execution failed: " + err.message,
+        });
+      }
+    }
+
+    res.json({ results });
+  } catch (error) {
+    console.error("Error running test cases:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.post("/api/checktc", async (req, res) => {
   // console.log(req.body.usercode);
 
@@ -767,57 +863,123 @@ app.post("/api/checktc", async (req, res) => {
 });
 
 app.post("/api/tcvalid", async (req, res) => {
-  // console.log(req.body);
+  try {
+    const { solutionCode, runnerCode, expectedOutput, input, language } =
+      req.body;
 
-  let language = req.body.language || "c";
-  const langConfig = languageConfig[language] || languageConfig.c;
-
-  // Prepare file content and name based on language
-  let fileName = `my_cool_code.${langConfig.fileExtension}`;
-  let fileContent = req.body.code;
-  if (language === "java") {
-    // For Java, try to set file name to class name
-    const match = req.body.code.match(/class\s+(\w+)/);
-    if (match) {
-      fileName = `${match[1]}.java`;
+    if (!solutionCode || !runnerCode || !expectedOutput || !language) {
+      return res.json({
+        status: "invalid",
+        error:
+          "Missing required fields: solutionCode, runnerCode, expectedOutput, or language",
+      });
     }
+
+    const lang = language || "c";
+    const langConfig = languageConfig[lang] || languageConfig.c;
+
+    // Combine solution code and runner code properly based on language
+    let fileContent = "";
+    let fileName = `my_cool_code.${langConfig.fileExtension}`;
+
+    if (lang === "python") {
+      // Python: Just concatenate with double newline
+      fileContent = solutionCode + "\n\n" + runnerCode;
+    } else if (lang === "java") {
+      // Java: Runner code should include the class with the method
+      fileContent = solutionCode;
+      // Try to extract class name for proper file naming
+      const classMatch = solutionCode.match(/public\s+class\s+(\w+)/);
+      if (classMatch) {
+        fileName = `${classMatch[1]}.java`;
+      }
+    } else if (lang === "c" || lang === "cpp") {
+      // C/C++: Concatenate solution and runner
+      fileContent = solutionCode + "\n\n" + runnerCode;
+    } else {
+      // Default behavior
+      fileContent = solutionCode + "\n\n" + runnerCode;
+    }
+
+    console.log("Executing code validation:");
+    console.log("Language:", lang);
+    console.log("File:", fileName);
+    console.log("Content:", fileContent);
+    console.log("Expected output:", expectedOutput);
+
+    // Execute the code
+    const response = await fetch(baseURLGlobal, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        language: langConfig.language,
+        version: langConfig.version,
+        aliases: langConfig.aliases,
+        runtime: langConfig.runtime,
+        files: [
+          {
+            name: fileName,
+            content: fileContent,
+          },
+        ],
+        stdin: input || "",
+        args: [],
+        compile_timeout: 10000,
+        run_timeout: 3000,
+      }),
+    });
+
+    const data = await response.json();
+    console.log("Piston response:", data);
+
+    // Check for compilation errors
+    if (data.compile && data.compile.stderr) {
+      return res.json({
+        status: "invalid",
+        compilationError: data.compile.stderr,
+      });
+    }
+
+    // Check for runtime errors
+    if (data.run && data.run.stderr) {
+      return res.json({
+        status: "invalid",
+        error: data.run.stderr,
+      });
+    }
+
+    // Get actual output
+    const actualOutput =
+      data.run && data.run.stdout ? data.run.stdout.trim() : "";
+    const expected = expectedOutput.trim();
+
+    console.log("Expected:", expected);
+    console.log("Actual:", actualOutput);
+
+    // Compare outputs
+    if (actualOutput === expected) {
+      return res.json({
+        status: "valid",
+        actualOutput: actualOutput,
+        expectedOutput: expected,
+      });
+    } else {
+      return res.json({
+        status: "invalid",
+        mismatch: true,
+        actualOutput: actualOutput,
+        expectedOutput: expected,
+      });
+    }
+  } catch (error) {
+    console.error("Error in /api/tcvalid:", error);
+    return res.json({
+      status: "invalid",
+      error: "Server error: " + error.message,
+    });
   }
-
-  const response = await fetch(baseURLGlobal, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      language: langConfig.language,
-      version: langConfig.version,
-      aliases: langConfig.aliases,
-      runtime: langConfig.runtime,
-      files: [
-        {
-          name: fileName,
-          content: fileContent,
-        },
-      ],
-      stdin: req.body.ip || "",
-      args: [],
-      compile_timeout: 10000,
-      run_timeout: 3000,
-    }),
-  });
-
-  const data = await response.json();
-
-  const remark = {};
-  remark.status = "invalid";
-
-  if ((data.run.stdout || "").trim() == (req.body.op || "").trim()) {
-    remark.status = "valid";
-  } else {
-    remark.error = data.run.stderr || "Your output:\n" + data.run.stdout;
-  }
-
-  res.json(remark);
 });
 
 app.get("/api/getTestcases/:qid", (req, res) => {

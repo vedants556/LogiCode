@@ -172,50 +172,54 @@ function Output(props) {
   async function exec() {
     setIsRunning(true);
     setTR("T");
+    setOP2("⏳ Running your code...");
+    setTestResults([]);
+
     try {
-      // Get language configuration from backend
-      const langResponse = await fetch("/api/languages");
-      const languages = await langResponse.json();
-      const selectedLang = props.language || "c";
-      const langConfig = languages[selectedLang] || languages.c;
-
-      console.log(typeof props.code);
-      const finalCode = props.code;
-      console.log(finalCode);
-
-      const response = await fetch(baseURL, {
+      // Get test cases from database and run code against them
+      const response = await fetch("/api/runtestcases", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          language: langConfig.language,
-          version: langConfig.version,
-          aliases: langConfig.aliases,
-          runtime: langConfig.runtime,
-          files: [
-            {
-              name: `my_cool_code.${langConfig.fileExtension}`,
-              content: finalCode,
-            },
-          ],
-          stdin: "",
-          args: [],
-          compile_timeout: 10000,
-          run_timeout: 3000,
+          usercode: props.code,
+          qid: props.qid,
+          language: props.language || "c",
         }),
       });
 
       const data = await response.json();
-      let o = data.run.stderr || data.run.stdout;
-      setOP2(o);
+      console.log("Run result:", data);
 
-      // Show the output in the testcases tab
+      if (data.error) {
+        setOP2("❌ Error:\n\n" + data.error);
+      } else if (data.results) {
+        // Display results for each test case
+        setTestResults(data.results);
+
+        // Format output message
+        let outputMsg = "";
+        data.results.forEach((result, index) => {
+          outputMsg += `Test Case ${index + 1}:\n`;
+          outputMsg += `Input: ${result.input}\n`;
+          outputMsg += `Expected: ${result.expected}\n`;
+          outputMsg += `Your Output: ${result.actual}\n`;
+          outputMsg += `Status: ${result.passed ? "✅ PASS" : "❌ FAIL"}\n`;
+          if (result.error) {
+            outputMsg += `Error: ${result.error}\n`;
+          }
+          outputMsg += "\n";
+        });
+
+        setOP2(outputMsg);
+      } else {
+        setOP2("✅ Code executed successfully");
+      }
+
       setTR("T");
-
-      console.log("Execution result:", data);
     } catch (error) {
-      alert("an error occurred, please try again later");
+      setOP2("❌ Error: " + error.message + "\n\nPlease try again later.");
       console.log(error);
     } finally {
       setIsRunning(false);

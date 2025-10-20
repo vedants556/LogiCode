@@ -396,6 +396,15 @@ function AddQuestion() {
             <div className="form-section">
               <h3 className="section-title">Test Cases</h3>
 
+              <div className="test-case-language-info">
+                <p>
+                  <strong>⚠️ Important:</strong> Test cases will use the{" "}
+                  <strong>{selectedLanguage.toUpperCase()}</strong> solution
+                  code. Make sure you've written your solution in the "
+                  {selectedLanguage.toUpperCase()} Code" section above!
+                </p>
+              </div>
+
               <div className="form-group">
                 <label htmlFor="function-name">Function Name</label>
                 <input
@@ -411,7 +420,7 @@ function AddQuestion() {
                 tcIndex={tcIndex}
                 setTCIndex={setTCIndex}
                 funcName={funcName}
-                answerCode={answerCode}
+                answerCode={languageSolutions[selectedLanguage] || ""}
                 setTestcases={setTestcases}
                 selectedLanguage={selectedLanguage}
               />
@@ -459,7 +468,6 @@ function AddQuestion() {
 }
 
 export default AddQuestion;
-
 function AddTestCase(props) {
   // Set default runner code based on language
   const defaultRunnerCodes = {
@@ -470,7 +478,9 @@ function AddTestCase(props) {
     //print the output by calling your function
     return 0;
 }`,
-    python: `# Call your function here\nif __name__ == "__main__":\n    pass\n`,
+    python: `# Call your function here
+if __name__ == "__main__":
+    pass`,
     java: `public class Main {\n    public static void main(String[] args) {\n        // Call your function here\n    }\n}`,
   };
   const [code, setCode] = useState(
@@ -488,85 +498,218 @@ function AddTestCase(props) {
   function savetestCase() {
     //function takes the testcase and appends it to main array
 
+    // Validate all required fields
+    if (!ip.current.value.trim()) {
+      alert("Input field cannot be empty");
+      return;
+    }
+
+    if (!op.current.value.trim()) {
+      alert("Expected output field cannot be empty");
+      return;
+    }
+
+    if (!code.trim()) {
+      alert("Driver code cannot be empty");
+      return;
+    }
+
+    if (!props.funcName || !props.funcName.trim()) {
+      alert("Function name is required");
+      return;
+    }
+
     if (!code.includes(props.funcName)) {
       //check if function is added in testcase runner function
+      alert(
+        "Function '" + props.funcName + "' must be called in the driver code"
+      );
+      return;
+    }
 
-      alert("Function not in code");
-      return 0;
+    // Only allow saving if test case is valid
+    if (status !== "valid") {
+      alert(
+        "Please validate the test case first by clicking 'Check Test Case'"
+      );
+      return;
     }
 
     testCaseInfo.no = props.tcIndex;
-    testCaseInfo.op = op.current.value;
+    testCaseInfo.op = op.current.value.trim();
     testCaseInfo.opType = opType.current.value;
-    testCaseInfo.ip = ip.current.value;
+    testCaseInfo.ip = ip.current.value.trim();
     testCaseInfo.ipType = ipType.current.value;
     testCaseInfo.runnercode = code;
 
-    console.log(testCaseInfo);
+    console.log("Saving test case:", testCaseInfo);
 
     props.setTestcases((arr) => [...arr, testCaseInfo]);
     isSaved(true);
     props.setTCIndex((c) => c + 1);
+
+    // Reset form after saving
+    ip.current.value = "";
+    op.current.value = "";
+    setCode(
+      defaultRunnerCodes[props.selectedLanguage] || defaultRunnerCodes["c"]
+    );
+    setStatus("");
+    setRemark("");
   }
 
   async function checkTcValidity() {
-    //check if testcase is valid or not
-    // For test case validation, we need to create a complete program
-    // that includes the function definition and a main function that calls it
-    const functionDefinition = props.answerCode;
-    const driverCode = code;
-
-    // Create complete code by combining function definition with driver code
-    let completeCode = "";
-    if (props.selectedLanguage === "python") {
-      completeCode = functionDefinition + "\n" + driverCode;
-    } else {
-      // For C/C++/Java, we need to ensure proper structure
-      completeCode = functionDefinition + "\n" + driverCode;
-    }
-
-    console.log("Complete code for validation:", completeCode);
-    setRemark("...");
-    setStatus("...");
-
-    var c = {};
-    c.op = op.current.value;
-    c.code = completeCode;
-    c.language = props.selectedLanguage || "c";
-
-    console.log(c);
-
-    const res = await fetch("/api/tcvalid", {
-      method: "post",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(c),
-    });
-
-    const data = await res.json();
-
-    if (data.error) {
+    // Validate required fields first
+    if (!op.current.value.trim()) {
       setStatus("invalid");
-      setRemark(data.error);
-    } else {
-      setStatus((r) => data.status);
+      setRemark("Expected output field cannot be empty");
+      return;
     }
-    console.log(data);
+
+    if (!code.trim()) {
+      setStatus("invalid");
+      setRemark("Driver code cannot be empty");
+      return;
+    }
+
+    if (!props.funcName || !props.funcName.trim()) {
+      setStatus("invalid");
+      setRemark("Function name is required");
+      return;
+    }
+
+    if (!props.answerCode || !props.answerCode.trim()) {
+      setStatus("invalid");
+      setRemark(
+        "Solution code is required. Please write your solution code in the 'Solution Code' editor above!"
+      );
+      return;
+    }
+
+    // Check if user is still using default code
+    const defaultCodes = {
+      python: 'print("Hello, World!")',
+      c: 'printf("Hello, World!\\n")',
+      cpp: 'std::cout << "Hello, World!"',
+      java: 'System.out.println("Hello, World!")',
+    };
+
+    if (props.answerCode.includes(defaultCodes[props.selectedLanguage])) {
+      setStatus("invalid");
+      setRemark(
+        "⚠️ Warning: You're still using the default 'Hello World' code. Please replace it with your actual solution function!"
+      );
+      return;
+    }
+
+    // Check if function is called in the driver code
+    if (!code.includes(props.funcName)) {
+      setStatus("invalid");
+      setRemark(
+        "Function '" + props.funcName + "' must be called in the driver code"
+      );
+      return;
+    }
+
+    setRemark("Validating...");
+    setStatus("validating");
+
+    const validationData = {
+      solutionCode: props.answerCode.trim(),
+      runnerCode: code.trim(),
+      expectedOutput: op.current.value.trim(),
+      input: ip.current.value.trim(),
+      language: props.selectedLanguage || "c",
+    };
+
+    console.log("Validation request:", validationData);
+
+    try {
+      const res = await fetch("/api/tcvalid", {
+        method: "post",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(validationData),
+      });
+
+      const data = await res.json();
+      console.log("Validation response:", data);
+
+      if (data.status === "valid") {
+        setStatus("valid");
+        setRemark("✅ Test case is valid!\nOutput: " + data.actualOutput);
+      } else if (data.error) {
+        setStatus("invalid");
+        setRemark("❌ Error:\n" + data.error);
+      } else if (data.compilationError) {
+        setStatus("invalid");
+        setRemark("❌ Compilation Error:\n" + data.compilationError);
+      } else if (data.mismatch) {
+        setStatus("invalid");
+        setRemark(
+          "❌ Output Mismatch:\n" +
+            "Expected: " +
+            data.expectedOutput +
+            "\n" +
+            "Got: " +
+            data.actualOutput
+        );
+      } else {
+        setStatus("invalid");
+        setRemark("❌ Test case validation failed");
+      }
+    } catch (error) {
+      console.error("Validation error:", error);
+      setStatus("invalid");
+      setRemark("❌ Network error: " + error.message);
+    }
   }
 
   return (
     <div className="add-testcase-container">
       <h4 className="testcase-title">Add New Test Case</h4>
 
+      <div className="testcase-instructions">
+        <h5>📋 How to Create a Test Case:</h5>
+        <ol>
+          <li>
+            <strong>Expected Output:</strong> Enter the exact text that should
+            print to stdout (must match exactly)
+          </li>
+          <li>
+            <strong>Driver Code:</strong> Write code that calls your function
+            and prints the result
+          </li>
+          <li>
+            <strong>Input (Optional):</strong> Only fill this if your driver
+            code reads from stdin
+          </li>
+          <li>
+            Click <strong>"Check Test Case"</strong> - system will combine your
+            solution + driver code and run it
+          </li>
+          <li>
+            When you see <strong>"✅ Valid"</strong>, click{" "}
+            <strong>"Save Test Case"</strong>
+          </li>
+        </ol>
+        <p className="testcase-note">
+          💡 <strong>Tip:</strong> The system automatically combines your
+          solution code with the driver code. Your driver code should call the
+          function and print output. Expected output must match exactly
+          (character-by-character).
+        </p>
+      </div>
+
       <div className="testcase-form">
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="testcase-input">Input (Displayed to User)</label>
+            <label htmlFor="testcase-input">Input (Optional - for stdin)</label>
             <input
               type="text"
               id="testcase-input"
-              placeholder="Enter input value"
+              placeholder="Enter input value (leave empty if not needed)"
               ref={ip}
               className="form-input"
             />
@@ -639,11 +782,19 @@ function AddTestCase(props) {
         </div>
 
         <div className="testcase-actions">
-          <button className="testcase-check-btn" onClick={checkTcValidity}>
+          <button
+            className="testcase-check-btn"
+            onClick={checkTcValidity}
+            disabled={status === "validating"}
+          >
             <span className="btn-icon">🔍</span>
-            Check Test Case
+            {status === "validating" ? "Validating..." : "Check Test Case"}
           </button>
-          <button className="testcase-save-btn" onClick={savetestCase}>
+          <button
+            className="testcase-save-btn"
+            onClick={savetestCase}
+            disabled={status !== "valid"}
+          >
             <span className="btn-icon">💾</span>
             Save Test Case
           </button>
@@ -652,13 +803,19 @@ function AddTestCase(props) {
         <div className="testcase-terminal">
           <h5>Validation Result</h5>
           <div className="terminal-content">
-            <div className="terminal-status">
-              <strong>Status:</strong> {status || "Not checked"}
+            <div className={`terminal-status status-${status}`}>
+              <strong>Status:</strong>
+              <span className={`status-indicator ${status}`}>
+                {status === "valid" && "✅ Valid"}
+                {status === "invalid" && "❌ Invalid"}
+                {status === "validating" && "⏳ Validating..."}
+                {!status && "⏸️ Not checked"}
+              </span>
             </div>
             {remark && (
               <div className="terminal-output">
-                <strong>Output:</strong>
-                <pre>{remark}</pre>
+                <strong>Message:</strong>
+                <div className={`output-message ${status}`}>{remark}</div>
               </div>
             )}
           </div>

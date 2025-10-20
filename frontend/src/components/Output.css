@@ -5,7 +5,7 @@
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
+  overflow: visible;
   min-height: 200px;
   display: flex;
   flex-direction: column;
@@ -115,7 +115,7 @@
 .output-content {
   flex: 1;
   padding: 25px;
-  overflow-y: auto;
+  overflow-y: visible;
 }
 
 /* Test Cases Section */
