@@ -207,87 +207,23 @@ function Problem() {
     return () => clearInterval(timerInterval.current);
   }, [timer, timeLeft]);
 
-  // Auto-submit function
-  async function handleAutoSubmit() {
+  // Auto-submit function - simply triggers the submit button
+  function handleAutoSubmit() {
     setNotificationMessage(
       "⏰ Time is up! Your code will be submitted automatically."
     );
     setShowNotification(true);
 
-    // Auto-submit the code after showing notification
-    setTimeout(async () => {
-      try {
-        // Trigger the same submit logic as the submit button
-        const checkData = {
-          usercode: value,
-          qid: qid,
-          language: selectedLanguage || "c",
-        };
-
-        console.log("🔄 Auto-submitting code:", checkData);
-
-        if (checkBy === "testcase") {
-          // Use test case checking
-          const response = await fetch("/api/checktc", {
-            method: "post",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(checkData),
-          });
-
-          const data = await response.json();
-          console.log("Auto-submit result:", data);
-
-          if (data.remark === "correct") {
-            setSolved(true);
-            setNotificationMessage(
-              "✅ Auto-submit successful! Problem solved!"
-            );
-          } else {
-            setNotificationMessage(
-              "❌ Auto-submit completed. Check results below."
-            );
-          }
-        } else {
-          // Use AI checking
-          const aiData = {
-            code: value,
-            desc: problemData[0]?.description || "",
-            userid: userid,
-            qid: qid,
-            language: selectedLanguage || "c",
-          };
-
-          const response = await fetch("/api/checkbyai", {
-            method: "post",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(aiData),
-          });
-
-          const aiResult = await response.json();
-          console.log("Auto-submit AI result:", aiResult);
-
-          if (aiResult.response.includes("pass")) {
-            setSolved(true);
-            setNotificationMessage(
-              "✅ Auto-submit successful! Problem solved!"
-            );
-          } else {
-            setNotificationMessage(
-              "❌ Auto-submit completed. Check results below."
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Auto-submit error:", error);
-        setNotificationMessage("❌ Auto-submit failed. Please try again.");
-      } finally {
-        setShowNotification(false);
+    // Auto-submit by triggering the submit button click
+    setTimeout(() => {
+      // Find and click the submit button
+      const submitButton = document.querySelector(".submit-btn");
+      if (submitButton && !submitButton.disabled) {
+        console.log("🔄 Auto-submitting: Clicking submit button");
+        submitButton.click();
       }
-    }, 3000);
+      setShowNotification(false);
+    }, 2000);
   }
 
   // Handle language change
