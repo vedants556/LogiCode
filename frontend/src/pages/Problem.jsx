@@ -53,6 +53,9 @@ function Problem() {
   const [copyPasteCount, setCopyPasteCount] = useState(0);
   const [sessionId, setSessionId] = useState(null);
   const [proctoringEnabled, setProctoringEnabled] = useState(true);
+  const [showProctoringNotice, setShowProctoringNotice] = useState(false);
+  const [violationWarning, setViolationWarning] = useState("");
+  const [showViolationWarning, setShowViolationWarning] = useState(false);
 
   // const [q_id, setQid] = useState(-1)
 
@@ -134,16 +137,29 @@ function Problem() {
     };
   }, [proctoringEnabled]);
 
-  // Proctoring: Track copy/paste in editor
+  // Proctoring: Track and PREVENT copy/paste
   useEffect(() => {
     if (!proctoringEnabled) return;
 
     const handlePaste = (e) => {
+      // Allow paste in editor only
+      const target = e.target;
+      const isEditor =
+        target.closest(".monaco-editor") ||
+        target.classList.contains("inputarea") ||
+        target.getAttribute("data-mode-id");
+
+      if (!isEditor) {
+        e.preventDefault();
+        showWarning("⚠️ Paste is not allowed outside the code editor!");
+        return;
+      }
+
       setCopyPasteCount((prev) => prev + 1);
       const pastedText = e.clipboardData?.getData("text") || "";
       logProctoringEvent(
         "paste",
-        `User pasted ${pastedText.length} characters`,
+        `User pasted ${pastedText.length} characters in editor`,
         pastedText.length > 100 ? "high" : "medium"
       );
       updateSessionCounter("paste");
@@ -151,6 +167,25 @@ function Problem() {
 
     const handleCopy = (e) => {
       const selectedText = window.getSelection()?.toString() || "";
+      const target = e.target;
+
+      // Prevent copying from problem description
+      const isProblemDescription =
+        target.closest(".problem-description-panel") ||
+        target.closest(".description-content") ||
+        target.closest(".problem-statement");
+
+      if (isProblemDescription && selectedText.length > 0) {
+        e.preventDefault();
+        showWarning("⚠️ Copying from problem description is not allowed!");
+        logProctoringEvent(
+          "copy_attempt_blocked",
+          `User attempted to copy ${selectedText.length} characters from description`,
+          "medium"
+        );
+        return;
+      }
+
       if (selectedText.length > 50) {
         logProctoringEvent(
           "copy",
@@ -160,12 +195,28 @@ function Problem() {
       }
     };
 
+    // Prevent select on problem description
+    const handleSelectStart = (e) => {
+      const target = e.target;
+      const isProblemDescription =
+        target.closest(".problem-description-panel") ||
+        target.closest(".description-content") ||
+        target.closest(".problem-statement");
+
+      if (isProblemDescription) {
+        e.preventDefault();
+        return false;
+      }
+    };
+
     document.addEventListener("paste", handlePaste);
     document.addEventListener("copy", handleCopy);
+    document.addEventListener("selectstart", handleSelectStart);
 
     return () => {
       document.removeEventListener("paste", handlePaste);
       document.removeEventListener("copy", handleCopy);
+      document.removeEventListener("selectstart", handleSelectStart);
     };
   }, [proctoringEnabled]);
 
@@ -173,6 +224,11 @@ function Problem() {
   useEffect(() => {
     if (problemData.length > 0 && qid && proctoringEnabled) {
       startProctoringSession();
+      // Show proctoring notice
+      setShowProctoringNotice(true);
+      setTimeout(() => {
+        setShowProctoringNotice(false);
+      }, 8000);
     }
 
     // End session when leaving
@@ -262,6 +318,14 @@ function Problem() {
     } catch (error) {
       console.error("Error updating session counter:", error);
     }
+  };
+
+  const showWarning = (message) => {
+    setViolationWarning(message);
+    setShowViolationWarning(true);
+    setTimeout(() => {
+      setShowViolationWarning(false);
+    }, 4000);
   };
 
   // Initial load: fetch problem, languages, testcases, solved
@@ -492,6 +556,55 @@ function Problem() {
       </div>
 
       <Navbar />
+
+      {/* Proctoring Active Indicator */}
+      {proctoringEnabled && (
+        <div className="proctoring-indicator">
+          <div className="proctoring-icon">🔒</div>
+          <span className="proctoring-text">Proctoring Active</span>
+          <div className="proctoring-pulse"></div>
+        </div>
+      )}
+
+      {/* Proctoring Notice Modal */}
+      {showProctoringNotice && (
+        <div className="proctoring-notice-overlay">
+          <div className="proctoring-notice">
+            <div className="notice-header">
+              <span className="notice-icon">🔒</span>
+              <h3>Proctoring Mode Active</h3>
+            </div>
+            <div className="notice-content">
+              <p>
+                <strong>This session is being monitored.</strong>
+              </p>
+              <ul className="notice-rules">
+                <li>❌ Do not switch tabs or windows</li>
+                <li>❌ Do not copy from problem description</li>
+                <li>❌ Developer tools are disabled</li>
+                <li>❌ Right-click is disabled</li>
+                <li>✅ You can paste code in the editor</li>
+                <li>⚠️ All violations will be logged</li>
+              </ul>
+              <p className="notice-footer">Good luck! 🎯</p>
+            </div>
+            <button
+              className="notice-close-btn"
+              onClick={() => setShowProctoringNotice(false)}
+            >
+              I Understand
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Violation Warning Toast */}
+      {showViolationWarning && (
+        <div className="violation-warning">
+          <div className="violation-icon">⚠️</div>
+          <span className="violation-message">{violationWarning}</span>
+        </div>
+      )}
 
       <div className="problem-content">
         {timer && timeLeft !== null && (
