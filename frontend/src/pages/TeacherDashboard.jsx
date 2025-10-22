@@ -7,6 +7,7 @@ function TeacherDashboard() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [dashboardStats, setDashboardStats] = useState(null);
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedUser, setSelectedUser] = useState(null);
   const [userDetails, setUserDetails] = useState(null);
@@ -14,16 +15,26 @@ function TeacherDashboard() {
   const [similarityResults, setSimilarityResults] = useState(null);
   const [selectedProblemForSimilarity, setSelectedProblemForSimilarity] =
     useState("");
+
+  // Event filtering states
+  const [eventFilter, setEventFilter] = useState({
+    search: "",
+    severity: "all",
+    sortBy: "time",
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const eventsPerPage = 20;
+
   const navigate = useNavigate();
 
   useEffect(() => {
     checkTeacherAccess();
     fetchDashboardData();
 
-    // Set up auto-refresh every 5 seconds
+    // Set up auto-refresh every 2 seconds for real-time updates
     const interval = setInterval(() => {
       fetchDashboardData();
-    }, 5000);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
@@ -51,7 +62,7 @@ function TeacherDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [sessionsRes, usersRes, eventsRes] = await Promise.all([
+      const [sessionsRes, usersRes, eventsRes, statsRes] = await Promise.all([
         fetch("/api/teacher/active-sessions", {
           headers: {
             authorization: "Bearer " + localStorage.getItem("auth"),
@@ -62,7 +73,12 @@ function TeacherDashboard() {
             authorization: "Bearer " + localStorage.getItem("auth"),
           },
         }),
-        fetch("/api/teacher/proctoring-events?limit=50", {
+        fetch("/api/teacher/proctoring-events?limit=200", {
+          headers: {
+            authorization: "Bearer " + localStorage.getItem("auth"),
+          },
+        }),
+        fetch("/api/teacher/dashboard-stats", {
           headers: {
             authorization: "Bearer " + localStorage.getItem("auth"),
           },
@@ -72,10 +88,12 @@ function TeacherDashboard() {
       const sessionsData = await sessionsRes.json();
       const usersData = await usersRes.json();
       const eventsData = await eventsRes.json();
+      const statsData = await statsRes.json();
 
       setActiveSessions(sessionsData);
       setUsers(usersData);
       setEvents(eventsData);
+      setDashboardStats(statsData);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -135,9 +153,58 @@ function TeacherDashboard() {
     }
   };
 
-  const formatTimestamp = (timestamp) => {
+  // Parse MySQL timestamp (YYYY-MM-DD HH:MM:SS) to local Date object
+  const parseMySQLTimestamp = (timestamp) => {
+    if (!timestamp) return null;
+
+    // MySQL timestamps are usually in server's local time
+    // If it's already an ISO string or Date object, use it directly
+    if (timestamp instanceof Date) return timestamp;
+
+    // Handle MySQL format: "YYYY-MM-DD HH:MM:SS"
+    // Replace space with 'T' and add 'Z' to treat as UTC if needed
+    // But actually, we should treat it as local server time
     const date = new Date(timestamp);
-    return date.toLocaleString();
+
+    return isNaN(date.getTime()) ? null : date;
+  };
+
+  const formatTimestamp = (timestamp) => {
+    const date = parseMySQLTimestamp(timestamp);
+
+    if (!date) return "Invalid date";
+
+    return date.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  const getTimeAgo = (timestamp) => {
+    const past = parseMySQLTimestamp(timestamp);
+
+    if (!past) return "N/A";
+
+    const now = new Date();
+    const diffMs = now - past;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    // Handle negative time differences (future dates)
+    if (diffSecs < 0) return "just now";
+
+    if (diffSecs < 10) return "just now";
+    if (diffSecs < 60) return `${diffSecs} sec ago`;
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24)
+      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
   };
 
   const renderOverview = () => (
@@ -147,7 +214,7 @@ function TeacherDashboard() {
           <div className="stat-icon">👥</div>
           <div className="stat-content">
             <h3>Total Students</h3>
-            <p className="stat-value">{users.length}</p>
+            <p className="stat-value">{dashboardStats?.total_students || 0}</p>
           </div>
         </div>
 
@@ -155,16 +222,19 @@ function TeacherDashboard() {
           <div className="stat-icon">🟢</div>
           <div className="stat-content">
             <h3>Active Now</h3>
-            <p className="stat-value">{activeSessions.length}</p>
+            <p className="stat-value">{dashboardStats?.active_students || 0}</p>
+            <p className="stat-subtitle">
+              {dashboardStats?.active_sessions || 0} sessions
+            </p>
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-icon">⚠️</div>
           <div className="stat-content">
-            <h3>High Severity Events</h3>
+            <h3>High Severity (Today)</h3>
             <p className="stat-value">
-              {events.filter((e) => e.severity === "high").length}
+              {dashboardStats?.high_severity_today || 0}
             </p>
           </div>
         </div>
@@ -172,8 +242,10 @@ function TeacherDashboard() {
         <div className="stat-card">
           <div className="stat-icon">📊</div>
           <div className="stat-content">
-            <h3>Total Events</h3>
-            <p className="stat-value">{events.length}</p>
+            <h3>Events (Today)</h3>
+            <p className="stat-value">
+              {dashboardStats?.total_events_today || 0}
+            </p>
           </div>
         </div>
       </div>
@@ -194,13 +266,8 @@ function TeacherDashboard() {
                   <div className="session-info">
                     <p>📝 {session.problem_name}</p>
                     <p>💻 {session.language?.toUpperCase()}</p>
-                    <p>
-                      ⏱️{" "}
-                      {Math.round(
-                        (Date.now() - new Date(session.started_at)) / 60000
-                      )}{" "}
-                      min ago
-                    </p>
+                    <p>🕐 Started: {getTimeAgo(session.started_at)}</p>
+                    <p>⏱️ Active: {getTimeAgo(session.last_activity)}</p>
                   </div>
                   <div className="session-warnings">
                     {session.tab_switches > 0 && (
@@ -297,94 +364,113 @@ function TeacherDashboard() {
 
           <div className="user-detail-section">
             <h3>Recent Sessions</h3>
-            {userDetails.sessions.map((session) => (
-              <div key={session.session_id} className="detail-card">
-                <p>
-                  <strong>Problem:</strong> {session.problem_name}
-                </p>
-                <p>
-                  <strong>Language:</strong> {session.language}
-                </p>
-                <p>
-                  <strong>Started:</strong>{" "}
-                  {formatTimestamp(session.started_at)}
-                </p>
-                <p>
-                  <strong>Tab Switches:</strong> {session.tab_switches}
-                </p>
-                <p>
-                  <strong>Copy/Paste:</strong> {session.copy_paste_count}
-                </p>
-              </div>
-            ))}
+            {userDetails.sessions.length === 0 ? (
+              <p className="no-data">No sessions found</p>
+            ) : (
+              userDetails.sessions.map((session) => (
+                <div key={session.session_id} className="detail-card">
+                  <p>
+                    <strong>Problem:</strong> {session.problem_name}
+                  </p>
+                  <p>
+                    <strong>Language:</strong> {session.language}
+                  </p>
+                  <p>
+                    <strong>Started:</strong>{" "}
+                    {formatTimestamp(session.started_at)}
+                  </p>
+                  <p>
+                    <strong>Tab Switches:</strong> {session.tab_switches}
+                  </p>
+                  <p>
+                    <strong>Copy/Paste:</strong> {session.copy_paste_count}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="user-detail-section">
             <h3>Proctoring Events</h3>
-            {userDetails.events.map((event) => (
-              <div
-                key={event.event_id}
-                className="detail-card"
-                style={{ borderLeftColor: getSeverityColor(event.severity) }}
-              >
-                <p>
-                  <strong>{event.event_type}</strong>
-                </p>
-                <p>{event.event_details}</p>
-                <p className="event-timestamp">
-                  {formatTimestamp(event.timestamp)}
-                </p>
-              </div>
-            ))}
+            {userDetails.events.length === 0 ? (
+              <p className="no-data">No events found</p>
+            ) : (
+              userDetails.events.map((event) => (
+                <div
+                  key={event.event_id}
+                  className="detail-card"
+                  style={{ borderLeftColor: getSeverityColor(event.severity) }}
+                >
+                  <p>
+                    <strong>{event.event_type}</strong>
+                  </p>
+                  <p>{event.event_details}</p>
+                  <p className="event-timestamp">
+                    {formatTimestamp(event.timestamp)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       ) : (
         <div className="users-table-container">
           <h2>👥 All Students</h2>
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Email</th>
-                <th>Solved</th>
-                <th>Active</th>
-                <th>Tab Switches</th>
-                <th>Copy/Paste</th>
-                <th>High Alerts</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map((user) => (
-                <tr
-                  key={user.userid}
-                  className={user.high_severity_events > 0 ? "suspicious" : ""}
-                >
-                  <td>{user.username}</td>
-                  <td>{user.email}</td>
-                  <td>{user.problems_solved}</td>
-                  <td>{user.active_now > 0 ? "🟢" : "⚪"}</td>
-                  <td>{user.total_tab_switches || 0}</td>
-                  <td>{user.total_copy_pastes || 0}</td>
-                  <td>
-                    {user.high_severity_events > 0 && (
-                      <span className="alert-badge">
-                        ⚠️ {user.high_severity_events}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <button
-                      className="view-btn"
-                      onClick={() => fetchUserDetails(user.userid)}
-                    >
-                      View
-                    </button>
-                  </td>
+          {users.length === 0 ? (
+            <div className="no-data-container">
+              <p className="no-data">No students found in the system</p>
+              <p className="no-data-subtitle">
+                Students will appear here once they sign up with a student role
+              </p>
+            </div>
+          ) : (
+            <table className="users-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Solved</th>
+                  <th>Active</th>
+                  <th>Tab Switches</th>
+                  <th>Copy/Paste</th>
+                  <th>High Alerts</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr
+                    key={user.userid}
+                    className={
+                      user.high_severity_events > 0 ? "suspicious" : ""
+                    }
+                  >
+                    <td>{user.username}</td>
+                    <td>{user.email}</td>
+                    <td>{user.problems_solved}</td>
+                    <td>{user.active_now > 0 ? "🟢" : "⚪"}</td>
+                    <td>{user.total_tab_switches || 0}</td>
+                    <td>{user.total_copy_pastes || 0}</td>
+                    <td>
+                      {user.high_severity_events > 0 && (
+                        <span className="alert-badge">
+                          ⚠️ {user.high_severity_events}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="view-btn"
+                        onClick={() => fetchUserDetails(user.userid)}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
     </div>
@@ -442,49 +528,205 @@ function TeacherDashboard() {
     </div>
   );
 
-  const renderEvents = () => (
-    <div className="events-section">
-      <h2>📊 All Proctoring Events</h2>
-      <div className="events-full-list">
-        {events.map((event) => (
-          <div
-            key={event.event_id}
-            className="event-card-full"
-            style={{ borderLeftColor: getSeverityColor(event.severity) }}
-          >
-            <div className="event-card-header">
-              <div>
-                <h4>{event.username}</h4>
-                <p className="event-email">{event.email}</p>
-              </div>
-              <span
-                className="severity-badge"
-                style={{ backgroundColor: getSeverityColor(event.severity) }}
-              >
-                {event.severity}
-              </span>
-            </div>
-            <div className="event-card-body">
-              <p>
-                <strong>Type:</strong> {event.event_type}
-              </p>
-              <p>
-                <strong>Details:</strong> {event.event_details}
-              </p>
-              {event.qname && (
-                <p>
-                  <strong>Problem:</strong> {event.qname}
-                </p>
-              )}
-              <p className="event-timestamp">
-                {formatTimestamp(event.timestamp)}
-              </p>
-            </div>
+  const renderEvents = () => {
+    // Filter events based on search and severity
+    const filteredEvents = events.filter((event) => {
+      const matchesSearch =
+        eventFilter.search === "" ||
+        event.username
+          .toLowerCase()
+          .includes(eventFilter.search.toLowerCase()) ||
+        event.event_type
+          .toLowerCase()
+          .includes(eventFilter.search.toLowerCase()) ||
+        event.event_details
+          .toLowerCase()
+          .includes(eventFilter.search.toLowerCase()) ||
+        (event.qname &&
+          event.qname.toLowerCase().includes(eventFilter.search.toLowerCase()));
+
+      const matchesSeverity =
+        eventFilter.severity === "all" ||
+        event.severity === eventFilter.severity;
+
+      return matchesSearch && matchesSeverity;
+    });
+
+    // Sort events
+    const sortedEvents = [...filteredEvents].sort((a, b) => {
+      if (eventFilter.sortBy === "time") {
+        return new Date(b.timestamp) - new Date(a.timestamp);
+      } else if (eventFilter.sortBy === "severity") {
+        const severityOrder = { high: 3, medium: 2, low: 1 };
+        return (
+          (severityOrder[b.severity] || 0) - (severityOrder[a.severity] || 0)
+        );
+      } else if (eventFilter.sortBy === "user") {
+        return a.username.localeCompare(b.username);
+      }
+      return 0;
+    });
+
+    // Paginate events
+    const totalPages = Math.ceil(sortedEvents.length / eventsPerPage);
+    const startIdx = (currentPage - 1) * eventsPerPage;
+    const paginatedEvents = sortedEvents.slice(
+      startIdx,
+      startIdx + eventsPerPage
+    );
+
+    // Group events by date
+    const groupedEvents = paginatedEvents.reduce((groups, event) => {
+      const date = new Date(event.timestamp).toDateString();
+      if (!groups[date]) {
+        groups[date] = [];
+      }
+      groups[date].push(event);
+      return groups;
+    }, {});
+
+    return (
+      <div className="events-section">
+        <div className="events-header">
+          <h2>📊 All Proctoring Events</h2>
+          <div className="events-controls">
+            <input
+              type="text"
+              placeholder="Search events, users, problems..."
+              value={eventFilter.search}
+              onChange={(e) => {
+                setEventFilter({ ...eventFilter, search: e.target.value });
+                setCurrentPage(1);
+              }}
+              className="event-search"
+            />
+            <select
+              value={eventFilter.severity}
+              onChange={(e) => {
+                setEventFilter({ ...eventFilter, severity: e.target.value });
+                setCurrentPage(1);
+              }}
+              className="event-filter"
+            >
+              <option value="all">All Severities</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+            <select
+              value={eventFilter.sortBy}
+              onChange={(e) =>
+                setEventFilter({ ...eventFilter, sortBy: e.target.value })
+              }
+              className="event-sort"
+            >
+              <option value="time">Sort by Time</option>
+              <option value="severity">Sort by Severity</option>
+              <option value="user">Sort by User</option>
+            </select>
           </div>
-        ))}
+          <div className="events-stats">
+            <span>Total: {events.length}</span>
+            <span>Filtered: {filteredEvents.length}</span>
+            <span>
+              High Severity:{" "}
+              {events.filter((e) => e.severity === "high").length}
+            </span>
+          </div>
+        </div>
+
+        {paginatedEvents.length === 0 ? (
+          <p className="no-data">No events found</p>
+        ) : (
+          <>
+            <div className="events-grouped">
+              {Object.entries(groupedEvents).map(([date, dateEvents]) => (
+                <div key={date} className="event-date-group">
+                  <h3 className="event-date-header">{date}</h3>
+                  <div className="events-list-grid">
+                    {dateEvents.map((event) => (
+                      <div
+                        key={event.event_id}
+                        className="event-card-full"
+                        style={{
+                          borderLeftColor: getSeverityColor(event.severity),
+                        }}
+                      >
+                        <div className="event-card-header">
+                          <div>
+                            <h4>{event.username}</h4>
+                            <p className="event-email">{event.email}</p>
+                          </div>
+                          <span
+                            className="severity-badge"
+                            style={{
+                              backgroundColor: getSeverityColor(event.severity),
+                            }}
+                          >
+                            {event.severity}
+                          </span>
+                        </div>
+                        <div className="event-card-body">
+                          <p>
+                            <strong>Type:</strong> {event.event_type}
+                          </p>
+                          <p>
+                            <strong>Details:</strong> {event.event_details}
+                          </p>
+                          {event.qname && (
+                            <p>
+                              <strong>Problem:</strong> {event.qname}
+                            </p>
+                          )}
+                          <p className="event-timestamp">
+                            {formatTimestamp(event.timestamp)} (
+                            {getTimeAgo(event.timestamp)})
+                          </p>
+                        </div>
+                        <button
+                          className="view-user-btn-small"
+                          onClick={() => {
+                            fetchUserDetails(event.user_id);
+                            setSelectedTab("users");
+                          }}
+                        >
+                          View User
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   if (loading) {
     return (

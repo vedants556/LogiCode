@@ -47,11 +47,30 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleLogout = () => {
-    localStorage.removeItem("auth");
-    setLogged(false);
-    setUsername("");
-    setSidebar(false);
+  const handleLogout = async () => {
+    try {
+      // End all active sessions before logging out
+      const authToken = localStorage.getItem("auth");
+      if (authToken) {
+        await fetch("/api/proctoring/end-all-sessions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: "Bearer " + authToken,
+          },
+          body: JSON.stringify({}),
+        });
+      }
+    } catch (error) {
+      console.error("Error ending sessions:", error);
+    } finally {
+      // Always logout even if the API call fails
+      localStorage.removeItem("auth");
+      setLogged(false);
+      setUsername("");
+      setSidebar(false);
+      window.location.href = "/";
+    }
   };
 
   const scrollToSection = (sectionId) => {

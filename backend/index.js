@@ -662,13 +662,6 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
 app.post("/api/runtestcases", async (req, res) => {
   const { usercode, qid, language } = req.body;
 
-  console.log(
-    "🔍 DEBUG: Running test cases for qid:",
-    qid,
-    "language:",
-    language
-  );
-
   try {
     // Get test cases from database filtered by language
     const testcases = await new Promise((resolve, reject) => {
@@ -677,25 +670,6 @@ app.post("/api/runtestcases", async (req, res) => {
         [qid, language],
         (err, result) => {
           if (err) return reject(err);
-          console.log(
-            "🔍 DEBUG: Retrieved test cases for language",
-            language,
-            ":",
-            result.length,
-            "total test cases"
-          );
-          console.log(
-            "🔍 DEBUG: Test cases details:",
-            result.map((tc) => ({
-              t_id: tc.t_id,
-              language: tc.language,
-              runnercode: tc.runnercode
-                ? tc.runnercode.substring(0, 50) + "..."
-                : "null",
-              ip: tc.ip,
-              op: tc.op,
-            }))
-          );
           resolve(result);
         }
       );
@@ -804,13 +778,6 @@ app.post("/api/checktc", async (req, res) => {
   let language = req.body.language || "c";
   let performanceMetrics = []; // ✅ Track performance across test cases
 
-  console.log(
-    "🔍 DEBUG: Checking test cases for qid:",
-    req.body.qid,
-    "language:",
-    language
-  );
-
   try {
     const result = await new Promise((resolve, reject) => {
       db.query(
@@ -820,25 +787,6 @@ app.post("/api/checktc", async (req, res) => {
           if (err) {
             return reject(err);
           }
-          console.log(
-            "🔍 DEBUG: Retrieved test cases for checktc language",
-            language,
-            ":",
-            result.length,
-            "total test cases"
-          );
-          console.log(
-            "🔍 DEBUG: Test cases details:",
-            result.map((tc) => ({
-              t_id: tc.t_id,
-              language: tc.language,
-              runnercode: tc.runnercode
-                ? tc.runnercode.substring(0, 50) + "..."
-                : "null",
-              ip: tc.ip,
-              op: tc.op,
-            }))
-          );
           resolve(result);
         }
       );
@@ -1003,12 +951,6 @@ app.post("/api/tcvalid", async (req, res) => {
       fileContent = solutionCode + "\n\n" + runnerCode;
     }
 
-    console.log("Executing code validation:");
-    console.log("Language:", lang);
-    console.log("File:", fileName);
-    console.log("Content:", fileContent);
-    console.log("Expected output:", expectedOutput);
-
     // Execute the code
     const response = await fetch(baseURLGlobal, {
       method: "POST",
@@ -1034,7 +976,6 @@ app.post("/api/tcvalid", async (req, res) => {
     });
 
     const data = await response.json();
-    console.log("Piston response:", data);
 
     // Check for compilation errors
     if (data.compile && data.compile.stderr) {
@@ -1056,9 +997,6 @@ app.post("/api/tcvalid", async (req, res) => {
     const actualOutput =
       data.run && data.run.stdout ? data.run.stdout.trim() : "";
     const expected = expectedOutput.trim();
-
-    console.log("Expected:", expected);
-    console.log("Actual:", actualOutput);
 
     // Compare outputs
     if (actualOutput === expected) {
@@ -1613,6 +1551,38 @@ app.post("/api/proctoring/end-session", authenticateUser, async (req, res) => {
   }
 });
 
+// End all user sessions (for logout)
+app.post(
+  "/api/proctoring/end-all-sessions",
+  authenticateUser,
+  async (req, res) => {
+    try {
+      const user_id = req.user.userid;
+
+      db.query(
+        "UPDATE active_sessions SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE",
+        [user_id],
+        (err, result) => {
+          if (err) {
+            console.error("Error ending all sessions:", err);
+            return res.status(500).json({ error: "Failed to end sessions" });
+          }
+
+          io.emit("user_logged_out", {
+            user_id,
+            username: req.user.username,
+          });
+
+          res.json({ success: true, sessions_ended: result.affectedRows });
+        }
+      );
+    } catch (error) {
+      console.error("Error in end-all-sessions:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
 // Update session activity counter (tab switches, copy/paste)
 app.post(
   "/api/proctoring/update-counter",
@@ -1674,11 +1644,18 @@ app.get(
   authenticateUser,
   isTeacher,
   (req, res) => {
+    // Only show sessions active in the last 5 minutes for real-time accuracy
     db.query(
-      `SELECT s.*, u.email, u.role 
+      `SELECT 
+        s.session_id, s.user_id, s.username, s.q_id, s.problem_name, s.language,
+        s.tab_switches, s.copy_paste_count, s.is_active,
+        DATE_FORMAT(CONVERT_TZ(s.started_at, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as started_at,
+        DATE_FORMAT(CONVERT_TZ(s.last_activity, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as last_activity,
+        u.email, u.role
      FROM active_sessions s 
      JOIN users u ON s.user_id = u.userid 
      WHERE s.is_active = TRUE 
+     AND s.last_activity >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)
      ORDER BY s.last_activity DESC`,
       [],
       (err, result) => {
@@ -1701,7 +1678,10 @@ app.get(
     const { limit = 100, severity, user_id, q_id } = req.query;
 
     let query = `
-    SELECT e.*, u.username, u.email, q.qname 
+    SELECT 
+      e.event_id, e.user_id, e.q_id, e.event_type, e.event_details, e.severity,
+      DATE_FORMAT(CONVERT_TZ(e.timestamp, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as timestamp,
+      u.username, u.email, q.qname 
     FROM proctoring_events e 
     JOIN users u ON e.user_id = u.userid 
     LEFT JOIN questions q ON e.q_id = q.q_id 
@@ -1748,15 +1728,15 @@ app.get(
       u.userid,
       u.username,
       u.email,
-      u.role,
+      COALESCE(u.role, 'student') as role,
       COUNT(DISTINCT s.q_id) as problems_solved,
-      (SELECT COUNT(*) FROM active_sessions WHERE user_id = u.userid AND is_active = TRUE) as active_now,
-      (SELECT SUM(tab_switches) FROM active_sessions WHERE user_id = u.userid) as total_tab_switches,
-      (SELECT SUM(copy_paste_count) FROM active_sessions WHERE user_id = u.userid) as total_copy_pastes,
+      (SELECT COUNT(*) FROM active_sessions WHERE user_id = u.userid AND is_active = TRUE AND last_activity >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as active_now,
+      (SELECT COALESCE(SUM(tab_switches), 0) FROM active_sessions WHERE user_id = u.userid) as total_tab_switches,
+      (SELECT COALESCE(SUM(copy_paste_count), 0) FROM active_sessions WHERE user_id = u.userid) as total_copy_pastes,
       (SELECT COUNT(*) FROM proctoring_events WHERE user_id = u.userid AND severity = 'high') as high_severity_events
     FROM users u
     LEFT JOIN solved s ON u.userid = s.user_id
-    WHERE u.role != 'teacher'
+    WHERE (u.role IS NULL OR (u.role != 'teacher' AND u.role != 'admin'))
     GROUP BY u.userid
     ORDER BY high_severity_events DESC, total_tab_switches DESC
   `;
@@ -1767,6 +1747,31 @@ app.get(
         return res.status(500).json({ error: "Failed to fetch users" });
       }
       res.json(result);
+    });
+  }
+);
+
+// Teacher Dashboard: Get summary statistics
+app.get(
+  "/api/teacher/dashboard-stats",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const query = `
+    SELECT 
+      (SELECT COUNT(*) FROM users WHERE (role IS NULL OR (role != 'teacher' AND role != 'admin'))) as total_students,
+      (SELECT COUNT(DISTINCT user_id) FROM active_sessions WHERE is_active = TRUE AND last_activity >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as active_students,
+      (SELECT COUNT(*) FROM active_sessions WHERE is_active = TRUE AND last_activity >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)) as active_sessions,
+      (SELECT COUNT(*) FROM proctoring_events WHERE severity = 'high' AND DATE(timestamp) = CURDATE()) as high_severity_today,
+      (SELECT COUNT(*) FROM proctoring_events WHERE DATE(timestamp) = CURDATE()) as total_events_today
+  `;
+
+    db.query(query, [], (err, result) => {
+      if (err) {
+        console.error("Error fetching dashboard stats:", err);
+        return res.status(500).json({ error: "Failed to fetch stats" });
+      }
+      res.json(result[0]);
     });
   }
 );
@@ -1893,22 +1898,34 @@ app.get(
 
     const queries = {
       user: "SELECT userid, username, email, role FROM users WHERE userid = ?",
-      sessions:
-        "SELECT * FROM active_sessions WHERE user_id = ? ORDER BY started_at DESC LIMIT 20",
+      sessions: `
+        SELECT 
+          session_id, user_id, username, q_id, problem_name, language,
+          tab_switches, copy_paste_count, is_active,
+          DATE_FORMAT(CONVERT_TZ(started_at, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as started_at,
+          DATE_FORMAT(CONVERT_TZ(last_activity, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as last_activity
+        FROM active_sessions 
+        WHERE user_id = ? 
+        ORDER BY started_at DESC 
+        LIMIT 20
+      `,
       events: `
-      SELECT e.*, q.qname 
-      FROM proctoring_events e 
-      LEFT JOIN questions q ON e.q_id = q.q_id 
-      WHERE e.user_id = ? 
-      ORDER BY e.timestamp DESC 
-      LIMIT 50
-    `,
+        SELECT 
+          e.event_id, e.user_id, e.q_id, e.event_type, e.event_details, e.severity,
+          DATE_FORMAT(CONVERT_TZ(e.timestamp, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as timestamp,
+          q.qname 
+        FROM proctoring_events e 
+        LEFT JOIN questions q ON e.q_id = q.q_id 
+        WHERE e.user_id = ? 
+        ORDER BY e.timestamp DESC 
+        LIMIT 50
+      `,
       solved: `
-      SELECT q.q_id, q.qname, q.qtype, s.user_id 
-      FROM solved s 
-      JOIN questions q ON s.q_id = q.q_id 
-      WHERE s.user_id = ?
-    `,
+        SELECT q.q_id, q.qname, q.qtype, s.user_id 
+        FROM solved s 
+        JOIN questions q ON s.q_id = q.q_id 
+        WHERE s.user_id = ?
+      `,
     };
 
     const results = {};
@@ -1956,6 +1973,28 @@ app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api")) return next();
   res.sendFile(path.join(publicDir, "index.html"));
 });
+
+// Automatic cleanup of stale sessions (runs every 2 minutes)
+function cleanupStaleSessions() {
+  db.query(
+    `UPDATE active_sessions 
+     SET is_active = FALSE 
+     WHERE is_active = TRUE 
+     AND last_activity < DATE_SUB(NOW(), INTERVAL 10 MINUTE)`,
+    [],
+    (err, result) => {
+      if (err) {
+        console.error("Error cleaning up stale sessions:", err);
+      }
+    }
+  );
+}
+
+// Run cleanup every 2 minutes
+setInterval(cleanupStaleSessions, 2 * 60 * 1000);
+
+// Run cleanup on startup
+cleanupStaleSessions();
 
 httpServer.listen(port, () => {
   console.log("http server up at ", port);
