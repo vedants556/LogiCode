@@ -11,6 +11,7 @@ import { Loginsignup } from "./pages/Loginsignup";
 import LandingPage from "./pages/LandingPage";
 import Profile from "./pages/Profile";
 import Registration from "./pages/Registration";
+import TeacherDashboard from "./pages/TeacherDashboard";
 
 function App() {
   const userid = 1;
@@ -25,6 +26,7 @@ function App() {
         <Route path="/problems/:type" element={<ProblemList />} />
         <Route path="/adminroadmap" element={<AdminRoadmap />} />
         <Route path="/leaderboard" element={<LeaderBoard />} />
+        <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
         <Route
           path="/login"
           element={<Registration initialMode="login" />}

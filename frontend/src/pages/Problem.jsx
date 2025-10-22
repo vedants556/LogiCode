@@ -48,7 +48,221 @@ function Problem() {
   const [username, setUname] = useState("");
   const navigate = useNavigate();
 
+  // Proctoring states
+  const [tabSwitches, setTabSwitches] = useState(0);
+  const [copyPasteCount, setCopyPasteCount] = useState(0);
+  const [sessionId, setSessionId] = useState(null);
+  const [proctoringEnabled, setProctoringEnabled] = useState(true);
+
   // const [q_id, setQid] = useState(-1)
+
+  // Proctoring: Track tab visibility changes
+  useEffect(() => {
+    if (!proctoringEnabled) return;
+
+    const handleVisibilityChange = () => {
+      if (document.hidden && qid && problemData.length > 0) {
+        // Tab switched away
+        setTabSwitches((prev) => prev + 1);
+        logProctoringEvent(
+          "tab_switch",
+          "User switched away from the problem page",
+          "medium"
+        );
+        updateSessionCounter("tab_switch");
+      }
+    };
+
+    const handleBlur = () => {
+      if (qid && problemData.length > 0) {
+        logProctoringEvent(
+          "window_blur",
+          "User switched to another window",
+          "low"
+        );
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [qid, problemData, proctoringEnabled]);
+
+  // Proctoring: Disable right-click and dev tools
+  useEffect(() => {
+    if (!proctoringEnabled) return;
+
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      logProctoringEvent(
+        "right_click_attempt",
+        "User attempted to right-click",
+        "low"
+      );
+      return false;
+    };
+
+    const handleKeyDown = (e) => {
+      // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey &&
+          e.shiftKey &&
+          (e.key === "I" || e.key === "J" || e.key === "C")) ||
+        (e.ctrlKey && e.key === "u")
+      ) {
+        e.preventDefault();
+        logProctoringEvent(
+          "devtools_attempt",
+          `User attempted to open dev tools: ${e.key}`,
+          "high"
+        );
+        return false;
+      }
+    };
+
+    document.addEventListener("contextmenu", handleContextMenu);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [proctoringEnabled]);
+
+  // Proctoring: Track copy/paste in editor
+  useEffect(() => {
+    if (!proctoringEnabled) return;
+
+    const handlePaste = (e) => {
+      setCopyPasteCount((prev) => prev + 1);
+      const pastedText = e.clipboardData?.getData("text") || "";
+      logProctoringEvent(
+        "paste",
+        `User pasted ${pastedText.length} characters`,
+        pastedText.length > 100 ? "high" : "medium"
+      );
+      updateSessionCounter("paste");
+    };
+
+    const handleCopy = (e) => {
+      const selectedText = window.getSelection()?.toString() || "";
+      if (selectedText.length > 50) {
+        logProctoringEvent(
+          "copy",
+          `User copied ${selectedText.length} characters`,
+          "low"
+        );
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    document.addEventListener("copy", handleCopy);
+
+    return () => {
+      document.removeEventListener("paste", handlePaste);
+      document.removeEventListener("copy", handleCopy);
+    };
+  }, [proctoringEnabled]);
+
+  // Proctoring: Start session when problem loads
+  useEffect(() => {
+    if (problemData.length > 0 && qid && proctoringEnabled) {
+      startProctoringSession();
+    }
+
+    // End session when leaving
+    return () => {
+      if (qid && proctoringEnabled) {
+        endProctoringSession();
+      }
+    };
+  }, [problemData, qid, proctoringEnabled]);
+
+  // Proctoring helper functions
+  const logProctoringEvent = async (
+    event_type,
+    event_details,
+    severity = "low"
+  ) => {
+    try {
+      await fetch("/api/proctoring/log-event", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+        body: JSON.stringify({
+          q_id: qid,
+          event_type,
+          event_details,
+          severity,
+        }),
+      });
+    } catch (error) {
+      console.error("Error logging proctoring event:", error);
+    }
+  };
+
+  const startProctoringSession = async () => {
+    try {
+      const response = await fetch("/api/proctoring/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+        body: JSON.stringify({
+          q_id: qid,
+          problem_name: problemData[0]?.qname || "",
+          language: selectedLanguage,
+        }),
+      });
+      const data = await response.json();
+      setSessionId(data.session_id);
+    } catch (error) {
+      console.error("Error starting proctoring session:", error);
+    }
+  };
+
+  const endProctoringSession = async () => {
+    try {
+      await fetch("/api/proctoring/end-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+        body: JSON.stringify({
+          q_id: qid,
+        }),
+      });
+    } catch (error) {
+      console.error("Error ending proctoring session:", error);
+    }
+  };
+
+  const updateSessionCounter = async (counter_type) => {
+    try {
+      await fetch("/api/proctoring/update-counter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+        body: JSON.stringify({
+          q_id: qid,
+          counter_type,
+        }),
+      });
+    } catch (error) {
+      console.error("Error updating session counter:", error);
+    }
+  };
 
   // Initial load: fetch problem, languages, testcases, solved
   useEffect(() => {

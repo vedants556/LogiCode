@@ -1460,6 +1460,483 @@ app.get("/api/deleteproblem/:qid", authenticateUser, (req, res) => {
   }
 });
 
+// ==================== PROCTORING ENDPOINTS ====================
+
+// Middleware to check if user is a teacher
+function isTeacher(req, res, next) {
+  if (req.user.role === "teacher" || req.user.role === "admin") {
+    next();
+  } else {
+    res.status(403).json({ error: "Access denied. Teacher role required." });
+  }
+}
+
+// Log proctoring event
+app.post("/api/proctoring/log-event", authenticateUser, async (req, res) => {
+  try {
+    const { q_id, event_type, event_details, severity } = req.body;
+    const user_id = req.user.userid;
+
+    const query = `
+      INSERT INTO proctoring_events (user_id, q_id, event_type, event_details, severity) 
+      VALUES (?, ?, ?, ?, ?)
+    `;
+
+    db.query(
+      query,
+      [
+        user_id,
+        q_id || null,
+        event_type,
+        event_details || "",
+        severity || "low",
+      ],
+      (err, result) => {
+        if (err) {
+          console.error("Error logging proctoring event:", err);
+          return res.status(500).json({ error: "Failed to log event" });
+        }
+
+        // Emit real-time event to teachers via WebSocket
+        io.emit("proctoring_event", {
+          user_id,
+          username: req.user.username,
+          q_id,
+          event_type,
+          event_details,
+          severity,
+          timestamp: new Date(),
+        });
+
+        res.json({ success: true, event_id: result.insertId });
+      }
+    );
+  } catch (error) {
+    console.error("Error in log-event:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Start/update active session
+app.post("/api/proctoring/session", authenticateUser, async (req, res) => {
+  try {
+    const { q_id, problem_name, language } = req.body;
+    const user_id = req.user.userid;
+    const username = req.user.username;
+
+    // Check if session already exists
+    db.query(
+      "SELECT * FROM active_sessions WHERE user_id = ? AND q_id = ? AND is_active = TRUE",
+      [user_id, q_id],
+      (err, existing) => {
+        if (err) {
+          console.error("Error checking session:", err);
+          return res.status(500).json({ error: "Failed to check session" });
+        }
+
+        if (existing.length > 0) {
+          // Update existing session
+          db.query(
+            "UPDATE active_sessions SET last_activity = CURRENT_TIMESTAMP, language = ? WHERE session_id = ?",
+            [language, existing[0].session_id],
+            (err, result) => {
+              if (err) {
+                console.error("Error updating session:", err);
+                return res
+                  .status(500)
+                  .json({ error: "Failed to update session" });
+              }
+              res.json({ success: true, session_id: existing[0].session_id });
+            }
+          );
+        } else {
+          // Create new session
+          db.query(
+            `INSERT INTO active_sessions (user_id, username, q_id, problem_name, language) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [user_id, username, q_id, problem_name, language],
+            (err, result) => {
+              if (err) {
+                console.error("Error creating session:", err);
+                return res
+                  .status(500)
+                  .json({ error: "Failed to create session" });
+              }
+
+              // Emit to teachers
+              io.emit("user_session_started", {
+                user_id,
+                username,
+                q_id,
+                problem_name,
+                language,
+              });
+
+              res.json({ success: true, session_id: result.insertId });
+            }
+          );
+        }
+      }
+    );
+  } catch (error) {
+    console.error("Error in session endpoint:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// End session
+app.post("/api/proctoring/end-session", authenticateUser, async (req, res) => {
+  try {
+    const { q_id } = req.body;
+    const user_id = req.user.userid;
+
+    db.query(
+      "UPDATE active_sessions SET is_active = FALSE WHERE user_id = ? AND q_id = ? AND is_active = TRUE",
+      [user_id, q_id],
+      (err, result) => {
+        if (err) {
+          console.error("Error ending session:", err);
+          return res.status(500).json({ error: "Failed to end session" });
+        }
+
+        io.emit("user_session_ended", {
+          user_id,
+          username: req.user.username,
+          q_id,
+        });
+        res.json({ success: true });
+      }
+    );
+  } catch (error) {
+    console.error("Error in end-session:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Update session activity counter (tab switches, copy/paste)
+app.post(
+  "/api/proctoring/update-counter",
+  authenticateUser,
+  async (req, res) => {
+    try {
+      const { q_id, counter_type } = req.body;
+      const user_id = req.user.userid;
+
+      const column =
+        counter_type === "tab_switch" ? "tab_switches" : "copy_paste_count";
+
+      db.query(
+        `UPDATE active_sessions 
+       SET ${column} = ${column} + 1, last_activity = CURRENT_TIMESTAMP 
+       WHERE user_id = ? AND q_id = ? AND is_active = TRUE`,
+        [user_id, q_id],
+        (err, result) => {
+          if (err) {
+            console.error("Error updating counter:", err);
+            return res.status(500).json({ error: "Failed to update counter" });
+          }
+          res.json({ success: true });
+        }
+      );
+    } catch (error) {
+      console.error("Error in update-counter:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// Submit code for plagiarism checking
+app.post("/api/proctoring/submit-code", authenticateUser, async (req, res) => {
+  try {
+    const { q_id, code, language } = req.body;
+    const user_id = req.user.userid;
+
+    db.query(
+      "INSERT INTO code_submissions (user_id, q_id, code, language) VALUES (?, ?, ?, ?)",
+      [user_id, q_id, code, language],
+      (err, result) => {
+        if (err) {
+          console.error("Error submitting code:", err);
+          return res.status(500).json({ error: "Failed to submit code" });
+        }
+        res.json({ success: true, submission_id: result.insertId });
+      }
+    );
+  } catch (error) {
+    console.error("Error in submit-code:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// Teacher Dashboard: Get all active sessions
+app.get(
+  "/api/teacher/active-sessions",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    db.query(
+      `SELECT s.*, u.email, u.role 
+     FROM active_sessions s 
+     JOIN users u ON s.user_id = u.userid 
+     WHERE s.is_active = TRUE 
+     ORDER BY s.last_activity DESC`,
+      [],
+      (err, result) => {
+        if (err) {
+          console.error("Error fetching active sessions:", err);
+          return res.status(500).json({ error: "Failed to fetch sessions" });
+        }
+        res.json(result);
+      }
+    );
+  }
+);
+
+// Teacher Dashboard: Get all proctoring events
+app.get(
+  "/api/teacher/proctoring-events",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const { limit = 100, severity, user_id, q_id } = req.query;
+
+    let query = `
+    SELECT e.*, u.username, u.email, q.qname 
+    FROM proctoring_events e 
+    JOIN users u ON e.user_id = u.userid 
+    LEFT JOIN questions q ON e.q_id = q.q_id 
+    WHERE 1=1
+  `;
+    const params = [];
+
+    if (severity) {
+      query += " AND e.severity = ?";
+      params.push(severity);
+    }
+
+    if (user_id) {
+      query += " AND e.user_id = ?";
+      params.push(user_id);
+    }
+
+    if (q_id) {
+      query += " AND e.q_id = ?";
+      params.push(q_id);
+    }
+
+    query += " ORDER BY e.timestamp DESC LIMIT ?";
+    params.push(parseInt(limit));
+
+    db.query(query, params, (err, result) => {
+      if (err) {
+        console.error("Error fetching proctoring events:", err);
+        return res.status(500).json({ error: "Failed to fetch events" });
+      }
+      res.json(result);
+    });
+  }
+);
+
+// Teacher Dashboard: Get all users with their activity stats
+app.get(
+  "/api/teacher/users-overview",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const query = `
+    SELECT 
+      u.userid,
+      u.username,
+      u.email,
+      u.role,
+      COUNT(DISTINCT s.q_id) as problems_solved,
+      (SELECT COUNT(*) FROM active_sessions WHERE user_id = u.userid AND is_active = TRUE) as active_now,
+      (SELECT SUM(tab_switches) FROM active_sessions WHERE user_id = u.userid) as total_tab_switches,
+      (SELECT SUM(copy_paste_count) FROM active_sessions WHERE user_id = u.userid) as total_copy_pastes,
+      (SELECT COUNT(*) FROM proctoring_events WHERE user_id = u.userid AND severity = 'high') as high_severity_events
+    FROM users u
+    LEFT JOIN solved s ON u.userid = s.user_id
+    WHERE u.role != 'teacher'
+    GROUP BY u.userid
+    ORDER BY high_severity_events DESC, total_tab_switches DESC
+  `;
+
+    db.query(query, [], (err, result) => {
+      if (err) {
+        console.error("Error fetching users overview:", err);
+        return res.status(500).json({ error: "Failed to fetch users" });
+      }
+      res.json(result);
+    });
+  }
+);
+
+// Teacher Dashboard: Check for code similarity
+app.post(
+  "/api/teacher/check-similarity",
+  authenticateUser,
+  isTeacher,
+  async (req, res) => {
+    try {
+      const { q_id } = req.body;
+
+      // Get all submissions for this question
+      db.query(
+        "SELECT cs.*, u.username FROM code_submissions cs JOIN users u ON cs.user_id = u.userid WHERE cs.q_id = ? ORDER BY cs.submitted_at DESC",
+        [q_id],
+        (err, submissions) => {
+          if (err) {
+            console.error("Error fetching submissions:", err);
+            return res
+              .status(500)
+              .json({ error: "Failed to fetch submissions" });
+          }
+
+          // Simple similarity check (comparing normalized code)
+          const similarityResults = [];
+
+          for (let i = 0; i < submissions.length; i++) {
+            for (let j = i + 1; j < submissions.length; j++) {
+              const similarity = calculateSimilarity(
+                submissions[i].code,
+                submissions[j].code
+              );
+
+              if (similarity > 0.85) {
+                similarityResults.push({
+                  user1: submissions[i].username,
+                  user1_id: submissions[i].user_id,
+                  user2: submissions[j].username,
+                  user2_id: submissions[j].user_id,
+                  similarity: similarity,
+                  submission1_id: submissions[i].submission_id,
+                  submission2_id: submissions[j].submission_id,
+                });
+              }
+            }
+          }
+
+          res.json({
+            total_submissions: submissions.length,
+            suspicious_pairs: similarityResults,
+          });
+        }
+      );
+    } catch (error) {
+      console.error("Error in check-similarity:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+// Simple string similarity calculation (Levenshtein-based)
+function calculateSimilarity(str1, str2) {
+  // Normalize strings: remove whitespace and comments
+  const normalize = (str) => {
+    return str
+      .replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "") // Remove comments
+      .replace(/\s+/g, "") // Remove whitespace
+      .toLowerCase();
+  };
+
+  const normalized1 = normalize(str1);
+  const normalized2 = normalize(str2);
+
+  if (normalized1 === normalized2) return 1.0;
+
+  const longer =
+    normalized1.length > normalized2.length ? normalized1 : normalized2;
+  const shorter =
+    normalized1.length > normalized2.length ? normalized2 : normalized1;
+
+  if (longer.length === 0) return 1.0;
+
+  const editDistance = levenshteinDistance(longer, shorter);
+  return (longer.length - editDistance) / longer.length;
+}
+
+function levenshteinDistance(str1, str2) {
+  const matrix = [];
+
+  for (let i = 0; i <= str2.length; i++) {
+    matrix[i] = [i];
+  }
+
+  for (let j = 0; j <= str1.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= str2.length; i++) {
+    for (let j = 1; j <= str1.length; j++) {
+      if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[str2.length][str1.length];
+}
+
+// Teacher Dashboard: Get user details
+app.get(
+  "/api/teacher/user/:userid",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const userid = req.params.userid;
+
+    const queries = {
+      user: "SELECT userid, username, email, role FROM users WHERE userid = ?",
+      sessions:
+        "SELECT * FROM active_sessions WHERE user_id = ? ORDER BY started_at DESC LIMIT 20",
+      events: `
+      SELECT e.*, q.qname 
+      FROM proctoring_events e 
+      LEFT JOIN questions q ON e.q_id = q.q_id 
+      WHERE e.user_id = ? 
+      ORDER BY e.timestamp DESC 
+      LIMIT 50
+    `,
+      solved: `
+      SELECT q.q_id, q.qname, q.qtype, s.user_id 
+      FROM solved s 
+      JOIN questions q ON s.q_id = q.q_id 
+      WHERE s.user_id = ?
+    `,
+    };
+
+    const results = {};
+
+    db.query(queries.user, [userid], (err, user) => {
+      if (err) return res.status(500).json({ error: "Database error" });
+      results.user = user[0];
+
+      db.query(queries.sessions, [userid], (err, sessions) => {
+        if (err) return res.status(500).json({ error: "Database error" });
+        results.sessions = sessions;
+
+        db.query(queries.events, [userid], (err, events) => {
+          if (err) return res.status(500).json({ error: "Database error" });
+          results.events = events;
+
+          db.query(queries.solved, [userid], (err, solved) => {
+            if (err) return res.status(500).json({ error: "Database error" });
+            results.solved = solved;
+
+            res.json(results);
+          });
+        });
+      });
+    });
+  }
+);
+
 // app.listen(port, ()=>{
 //     console.log("App is listening at port "+port);
 // })

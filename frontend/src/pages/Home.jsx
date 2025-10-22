@@ -47,6 +47,12 @@ function Home() {
       const data = await resp.json();
       console.log(data);
       setUserName(data.data.username);
+
+      // Redirect teachers to their dashboard
+      if (data.data.role === "teacher" || data.data.role === "admin") {
+        navigate("/teacher-dashboard");
+        return;
+      }
     }
 
     if (checkLogged()) {

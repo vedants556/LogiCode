@@ -66,7 +66,28 @@ export const Loginsignup = () => {
 
       if (data.message) {
         localStorage.setItem("auth", data.accessToken);
-        navigate("/home");
+
+        // Get user info to check role
+        const userInfoResponse = await fetch("/api/getUserInfo", {
+          method: "post",
+          headers: {
+            "Content-type": "application/json",
+            authorization: "Bearer " + data.accessToken,
+          },
+          body: JSON.stringify({}),
+        });
+
+        const userInfo = await userInfoResponse.json();
+
+        // Redirect based on role
+        if (
+          userInfo.data.role === "teacher" ||
+          userInfo.data.role === "admin"
+        ) {
+          navigate("/teacher-dashboard");
+        } else {
+          navigate("/home");
+        }
       } else {
         setError("Invalid credentials");
       }

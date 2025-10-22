@@ -67,6 +67,24 @@ function Output(props) {
       setWrongIp(data.input);
       setYIP(data.your_output);
 
+      // Submit code for plagiarism tracking
+      try {
+        await fetch("/api/proctoring/submit-code", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: "Bearer " + localStorage.getItem("auth"),
+          },
+          body: JSON.stringify({
+            q_id: props.qid,
+            code: props.code,
+            language: props.language || "c",
+          }),
+        });
+      } catch (err) {
+        console.error("Error submitting code for proctoring:", err);
+      }
+
       if (data.remark == "correct") {
         props.setSolved(true);
 

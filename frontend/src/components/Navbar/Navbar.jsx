@@ -8,6 +8,7 @@ const Navbar = () => {
   const [username, setUsername] = useState("");
   const [showSidebar, setSidebar] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [userRole, setUserRole] = useState("");
 
   useEffect(() => {
     async function checkLogged() {
@@ -28,6 +29,7 @@ const Navbar = () => {
         console.log(data);
 
         setUsername(data.data.username);
+        setUserRole(data.data.role);
       } else {
         setLogged(false);
       }
@@ -78,6 +80,16 @@ const Navbar = () => {
                   Dashboard
                 </Link>
               </li>
+              {(userRole === "teacher" || userRole === "admin") && (
+                <li className="nav-item">
+                  <Link
+                    to="/teacher-dashboard"
+                    className="nav-link teacher-link"
+                  >
+                    🎓 Teacher
+                  </Link>
+                </li>
+              )}
               <li className="nav-item">
                 <button
                   className="nav-link"
@@ -150,6 +162,17 @@ const Navbar = () => {
                   Dashboard
                 </Link>
               </li>
+              {(userRole === "teacher" || userRole === "admin") && (
+                <li className="mobile-nav-item">
+                  <Link
+                    to="/teacher-dashboard"
+                    className="mobile-nav-link teacher-link"
+                    onClick={() => setSidebar(false)}
+                  >
+                    🎓 Teacher Dashboard
+                  </Link>
+                </li>
+              )}
               <li className="mobile-nav-item">
                 <button
                   className="mobile-nav-link"
