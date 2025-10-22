@@ -169,29 +169,7 @@ button {
   color: white;
 }
 
-.lbnames {
-  background-color: rgb(102, 102, 102);
-  margin: 10px;
-  padding: 10px;
-}
-
-.leaderRoll :nth-child(1) {
-  background-color: rgb(227, 204, 72);
-}
-
-.leaderRoll :nth-child(2) {
-  background-color: rgb(180, 180, 180);
-}
-
-.leaderRoll :nth-child(3) {
-  background-color: rgb(163, 114, 67);
-}
-
-.leaderRoll {
-  border: 3px solid lightgreen;
-  border-radius: 10px;
-  margin: 20px;
-}
+/* Leaderboard styles moved to LeaderBoard.css */
 
 .homepagebuttons {
   color: white;
@@ -292,29 +270,7 @@ button {
   color: rgb(0, 185, 15) !important;
 }
 
-.highlighted {
-  border: 2px solid rgb(135, 250, 143);
-}
-
-.lb {
-  display: flex;
-  flex-direction: column;
-}
-
-.lbheader {
-  text-align: center;
-  border: 2px solid lightgreen;
-  border-radius: 10px;
-  align-self: center;
-  width: 12em;
-  padding: 6px;
-}
-
-.rank {
-  width: 100%;
-  padding-top: 20px;
-  text-align: center;
-}
+/* Leaderboard styles moved to LeaderBoard.css */
 
 .statsspan {
   background-color: greenyellow;
