@@ -17,6 +17,7 @@ function Output(props) {
   const [testResults, setTestResults] = useState([]);
   const [showAI, setShowAI] = useState(false);
   const [aiResponse, setAiResponse] = useState("");
+  const [performanceData, setPerformanceData] = useState(null); // ✅ Performance metrics
 
   const a = [1, 2, 11, 55];
   const red = "#f7564a";
@@ -49,6 +50,12 @@ function Output(props) {
       console.log(data.remark);
 
       data.remark === "correct" ? setRBC("#4caf50") : setRBC("#f44336");
+
+      // ✅ Capture performance data
+      if (data.performance) {
+        setPerformanceData(data.performance);
+        console.log("Performance metrics:", data.performance);
+      }
 
       if (data.error) {
         setError(data.error);
@@ -206,6 +213,13 @@ function Output(props) {
           outputMsg += `Expected: ${result.expected}\n`;
           outputMsg += `Your Output: ${result.actual}\n`;
           outputMsg += `Status: ${result.passed ? "✅ PASS" : "❌ FAIL"}\n`;
+
+          // ✅ Add performance info
+          if (result.performance) {
+            outputMsg += `⏱️  Runtime: ${result.performance.wall_time}ms\n`;
+            outputMsg += `💾 Memory: ${result.performance.memory_mb}MB\n`;
+          }
+
           if (result.error) {
             outputMsg += `Error: ${result.error}\n`;
           }
@@ -359,6 +373,42 @@ function Output(props) {
                     </div>
                     <div className="result-item">
                       <strong>Expected Output:</strong> {expectedIP}
+                    </div>
+                  </div>
+                )}
+
+                {/* ✅ Performance Metrics Display */}
+                {performanceData && status === "correct" && (
+                  <div className="performance-metrics">
+                    <h4 className="performance-title">⚡ Performance</h4>
+                    <div className="metrics-grid">
+                      <div className="metric-card">
+                        <div className="metric-icon">⏱️</div>
+                        <div className="metric-value">
+                          {performanceData.avg_wall_time}ms
+                        </div>
+                        <div className="metric-label">Runtime</div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-icon">🧠</div>
+                        <div className="metric-value">
+                          {performanceData.avg_cpu_time}ms
+                        </div>
+                        <div className="metric-label">CPU Time</div>
+                      </div>
+                      <div className="metric-card">
+                        <div className="metric-icon">💾</div>
+                        <div className="metric-value">
+                          {performanceData.memory_mb} MB
+                        </div>
+                        <div className="metric-label">Memory</div>
+                      </div>
+                    </div>
+                    <div className="performance-summary">
+                      <span>
+                        ✅ All {performanceData.test_cases} test cases passed
+                      </span>
+                      <span>• Total time: {performanceData.total_time}ms</span>
                     </div>
                   </div>
                 )}

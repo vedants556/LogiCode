@@ -759,6 +759,13 @@ app.post("/api/runtestcases", async (req, res) => {
           actual: actualOutput,
           passed: actualOutput === expectedOutput && !data.run.stderr,
           error: data.run.stderr || data.compile?.stderr || null,
+          // ✅ Performance metrics from Piston
+          performance: {
+            cpu_time: data.run?.cpu_time || 0,
+            wall_time: data.run?.wall_time || 0,
+            memory: data.run?.memory || 0,
+            memory_mb: ((data.run?.memory || 0) / 1024 / 1024).toFixed(2),
+          },
         });
 
         await new Promise((resolve) => setTimeout(resolve, 300));
@@ -769,6 +776,12 @@ app.post("/api/runtestcases", async (req, res) => {
           actual: "",
           passed: false,
           error: "Execution failed: " + err.message,
+          performance: {
+            cpu_time: 0,
+            wall_time: 0,
+            memory: 0,
+            memory_mb: "0.00",
+          },
         });
       }
     }
@@ -789,6 +802,7 @@ app.post("/api/checktc", async (req, res) => {
   let expected_output = "";
   let usercode = req.body.usercode;
   let language = req.body.language || "c";
+  let performanceMetrics = []; // ✅ Track performance across test cases
 
   console.log(
     "🔍 DEBUG: Checking test cases for qid:",
@@ -889,6 +903,14 @@ app.post("/api/checktc", async (req, res) => {
         your_output = data.run.stdout;
         return false;
       }
+
+      // ✅ Collect performance metrics for successful runs
+      performanceMetrics.push({
+        cpu_time: data.run?.cpu_time || 0,
+        wall_time: data.run?.wall_time || 0,
+        memory: data.run?.memory || 0,
+      });
+
       return true;
     }
 
@@ -908,7 +930,34 @@ app.post("/api/checktc", async (req, res) => {
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
-    res.json({ remark: "correct" });
+    // ✅ Calculate average performance metrics
+    let avgMetrics = null;
+    if (performanceMetrics.length > 0) {
+      avgMetrics = {
+        avg_cpu_time: Math.round(
+          performanceMetrics.reduce((sum, m) => sum + m.cpu_time, 0) /
+            performanceMetrics.length
+        ),
+        avg_wall_time: Math.round(
+          performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0) /
+            performanceMetrics.length
+        ),
+        avg_memory: Math.round(
+          performanceMetrics.reduce((sum, m) => sum + m.memory, 0) /
+            performanceMetrics.length
+        ),
+        max_memory: Math.max(...performanceMetrics.map((m) => m.memory)),
+        total_time: performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0),
+        memory_mb: (
+          Math.max(...performanceMetrics.map((m) => m.memory)) /
+          1024 /
+          1024
+        ).toFixed(2),
+        test_cases: performanceMetrics.length,
+      };
+    }
+
+    res.json({ remark: "correct", performance: avgMetrics });
   } catch (error) {
     console.error("Error during database query or execution:", error);
     res.status(500).json({ error: "Internal Server Error" });
