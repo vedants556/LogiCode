@@ -539,39 +539,62 @@ VALUES (1, 3, 0.95);
 
 ### Landing Page
 
-![Landing Page](https://github.com/user-attachments/assets/777e6624-0e6c-4cfa-b61f-9430a6e0a126)
+![Landing Page](/screenshots/Screenshot%20(1274).png)
+![Landing Page](/screenshots/Screenshot%20(1275).png)
+![Landing Page](/screenshots/Screenshot%20(1276).png)
+![Landing Page](/screenshots/Screenshot%20(1277).png)
+![Landing Page](/screenshots/Screenshot%20(1278).png)
+![Landing Page](/screenshots/Screenshot%20(1279).png)
+
+
 
 ### Dashboard
 
-![Dashboard](https://github.com/user-attachments/assets/4e91cbed-2df1-497f-ae07-ce6febfa9a1f)
+![Dashboard](/screenshots/Screenshot%20(1283).png)
+![Dashboard](/screenshots/Screenshot%20(1284).png)
+![Dashboard](/screenshots/Screenshot%20(1285).png)
 
 ### Problem Selection
 
-![Select Problem](https://github.com/user-attachments/assets/faf5f482-756e-40c2-b21c-1aafd2a1b08c)
+![Select Problem](/screenshots/Screenshot%20(1285).png)
 
 ### Code Editor
 
-![Solve Problem](https://github.com/user-attachments/assets/65e9faf7-444b-464e-972f-a5d2f7e218d7)
+![Solve Problem](/screenshots/Screenshot%20(1288).png)
+![Solve Problem](/screenshots/Screenshot%20(1289).png)
+![Solve Problem](/screenshots/Screenshot%20(1290).png)
+![Solve Problem](/screenshots/Screenshot%20(1291).png)
+![Solve Problem](/screenshots/Screenshot%20(1292).png)
+![Solve Problem](/screenshots/Screenshot%20(1293).png)
+![Solve Problem](/screenshots/Screenshot%20(1294).png)
+![Solve Problem](/screenshots/Screenshot%20(1295).png)
+![Solve Problem](/screenshots/Screenshot%20(1296).png)
+![Solve Problem](/screenshots/Screenshot%20(1297).png)
+![Solve Problem](/screenshots/Screenshot%20(1298).png)
+![Solve Problem](/screenshots/Screenshot%20(1299).png)
+![Solve Problem](/screenshots/Screenshot%20(1300).png)
+![Solve Problem](/screenshots/Screenshot%20(1301).png)
+![Solve Problem](/screenshots/Screenshot%20(1302).png)
 
 ### Test Results
 
-![Wrong Code Submitted](https://github.com/user-attachments/assets/e2e92d3c-32cb-43a5-94d0-f79c50df4496)
+![Wrong Code Submitted]()
 
 ### AI Assistant
 
-![Ask AI for Help](https://github.com/user-attachments/assets/049a2af1-7a13-41bf-9887-089c8c8ee0d1)
+![Ask AI for Help]()
 
 ### Admin Panel
 
-![Admin Panel](https://github.com/user-attachments/assets/09995e32-5716-467e-9447-c381d710ff51)
+![Admin Panel]()
 
 ### Leaderboard
 
-![Leaderboard](https://github.com/user-attachments/assets/0378109e-501b-4ceb-8a22-54fea3438e5b)
+![Leaderboard]()
 
 ### Login/Signup
 
-![Login/Signup](https://github.com/user-attachments/assets/361fe857-1a88-446e-8347-b8a234290486)
+![Login/Signup]()
 
 ## Recent Updates
 
