@@ -1888,6 +1888,50 @@ function levenshteinDistance(str1, str2) {
   return matrix[str2.length][str1.length];
 }
 
+// Teacher Dashboard: Get all code submissions
+app.get(
+  "/api/teacher/code-submissions",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const { limit = 100, user_id, q_id } = req.query;
+
+    let query = `
+    SELECT 
+      cs.submission_id, cs.user_id, cs.q_id, cs.code, cs.language,
+      DATE_FORMAT(CONVERT_TZ(cs.submitted_at, @@session.time_zone, '+00:00'), '%Y-%m-%dT%H:%i:%s.000Z') as submitted_at,
+      u.username, u.email,
+      q.qname, q.qtype
+    FROM code_submissions cs
+    JOIN users u ON cs.user_id = u.userid
+    JOIN questions q ON cs.q_id = q.q_id
+    WHERE 1=1
+  `;
+    const params = [];
+
+    if (user_id) {
+      query += " AND cs.user_id = ?";
+      params.push(user_id);
+    }
+
+    if (q_id) {
+      query += " AND cs.q_id = ?";
+      params.push(q_id);
+    }
+
+    query += " ORDER BY cs.submitted_at DESC LIMIT ?";
+    params.push(parseInt(limit));
+
+    db.query(query, params, (err, result) => {
+      if (err) {
+        console.error("Error fetching code submissions:", err);
+        return res.status(500).json({ error: "Failed to fetch submissions" });
+      }
+      res.json(result);
+    });
+  }
+);
+
 // Teacher Dashboard: Get user details
 app.get(
   "/api/teacher/user/:userid",

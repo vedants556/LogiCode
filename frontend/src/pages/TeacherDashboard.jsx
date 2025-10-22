@@ -7,6 +7,7 @@ function TeacherDashboard() {
   const [activeSessions, setActiveSessions] = useState([]);
   const [users, setUsers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
   const [dashboardStats, setDashboardStats] = useState(null);
   const [selectedTab, setSelectedTab] = useState("overview");
   const [selectedUser, setSelectedUser] = useState(null);
@@ -15,6 +16,7 @@ function TeacherDashboard() {
   const [similarityResults, setSimilarityResults] = useState(null);
   const [selectedProblemForSimilarity, setSelectedProblemForSimilarity] =
     useState("");
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
 
   // Event filtering states
   const [eventFilter, setEventFilter] = useState({
@@ -22,8 +24,16 @@ function TeacherDashboard() {
     severity: "all",
     sortBy: "time",
   });
+
+  // Submission filtering states
+  const [submissionFilter, setSubmissionFilter] = useState({
+    search: "",
+    language: "all",
+  });
+
   const [currentPage, setCurrentPage] = useState(1);
   const eventsPerPage = 20;
+  const submissionsPerPage = 15;
 
   const navigate = useNavigate();
 
@@ -62,38 +72,46 @@ function TeacherDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [sessionsRes, usersRes, eventsRes, statsRes] = await Promise.all([
-        fetch("/api/teacher/active-sessions", {
-          headers: {
-            authorization: "Bearer " + localStorage.getItem("auth"),
-          },
-        }),
-        fetch("/api/teacher/users-overview", {
-          headers: {
-            authorization: "Bearer " + localStorage.getItem("auth"),
-          },
-        }),
-        fetch("/api/teacher/proctoring-events?limit=200", {
-          headers: {
-            authorization: "Bearer " + localStorage.getItem("auth"),
-          },
-        }),
-        fetch("/api/teacher/dashboard-stats", {
-          headers: {
-            authorization: "Bearer " + localStorage.getItem("auth"),
-          },
-        }),
-      ]);
+      const [sessionsRes, usersRes, eventsRes, statsRes, submissionsRes] =
+        await Promise.all([
+          fetch("/api/teacher/active-sessions", {
+            headers: {
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+          }),
+          fetch("/api/teacher/users-overview", {
+            headers: {
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+          }),
+          fetch("/api/teacher/proctoring-events?limit=200", {
+            headers: {
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+          }),
+          fetch("/api/teacher/dashboard-stats", {
+            headers: {
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+          }),
+          fetch("/api/teacher/code-submissions?limit=200", {
+            headers: {
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+          }),
+        ]);
 
       const sessionsData = await sessionsRes.json();
       const usersData = await usersRes.json();
       const eventsData = await eventsRes.json();
       const statsData = await statsRes.json();
+      const submissionsData = await submissionsRes.json();
 
       setActiveSessions(sessionsData);
       setUsers(usersData);
       setEvents(eventsData);
       setDashboardStats(statsData);
+      setSubmissions(submissionsData);
       setLoading(false);
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -728,6 +746,204 @@ function TeacherDashboard() {
     );
   };
 
+  const renderSubmissions = () => {
+    // Filter submissions
+    const filteredSubmissions = submissions.filter((submission) => {
+      const matchesSearch =
+        submissionFilter.search === "" ||
+        submission.username
+          .toLowerCase()
+          .includes(submissionFilter.search.toLowerCase()) ||
+        submission.qname
+          .toLowerCase()
+          .includes(submissionFilter.search.toLowerCase());
+
+      const matchesLanguage =
+        submissionFilter.language === "all" ||
+        submission.language === submissionFilter.language;
+
+      return matchesSearch && matchesLanguage;
+    });
+
+    // Paginate submissions
+    const totalPages = Math.ceil(
+      filteredSubmissions.length / submissionsPerPage
+    );
+    const startIdx = (currentPage - 1) * submissionsPerPage;
+    const paginatedSubmissions = filteredSubmissions.slice(
+      startIdx,
+      startIdx + submissionsPerPage
+    );
+
+    // Get unique languages for filter
+    const uniqueLanguages = [...new Set(submissions.map((s) => s.language))];
+
+    if (selectedSubmission) {
+      return (
+        <div className="submission-detail-view">
+          <button
+            className="back-button"
+            onClick={() => setSelectedSubmission(null)}
+          >
+            ← Back to Submissions
+          </button>
+
+          <div className="submission-detail-header">
+            <h2>📝 Code Submission</h2>
+            <div className="submission-meta">
+              <p>
+                <strong>Student:</strong> {selectedSubmission.username} (
+                {selectedSubmission.email})
+              </p>
+              <p>
+                <strong>Problem:</strong> {selectedSubmission.qname}
+              </p>
+              <p>
+                <strong>Language:</strong>{" "}
+                {selectedSubmission.language.toUpperCase()}
+              </p>
+              <p>
+                <strong>Submitted:</strong>{" "}
+                {formatTimestamp(selectedSubmission.submitted_at)} (
+                {getTimeAgo(selectedSubmission.submitted_at)})
+              </p>
+            </div>
+          </div>
+
+          <div className="code-viewer">
+            <div className="code-header">
+              <span>💻 Code</span>
+              <button
+                className="copy-code-btn"
+                onClick={() => {
+                  navigator.clipboard.writeText(selectedSubmission.code);
+                  alert("Code copied to clipboard!");
+                }}
+              >
+                📋 Copy
+              </button>
+            </div>
+            <pre className="code-content">
+              <code>{selectedSubmission.code}</code>
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="submissions-section">
+        <div className="submissions-header">
+          <h2>📝 Code Submissions</h2>
+          <div className="submissions-controls">
+            <input
+              type="text"
+              placeholder="Search by student or problem..."
+              value={submissionFilter.search}
+              onChange={(e) => {
+                setSubmissionFilter({
+                  ...submissionFilter,
+                  search: e.target.value,
+                });
+                setCurrentPage(1);
+              }}
+              className="submission-search"
+            />
+            <select
+              value={submissionFilter.language}
+              onChange={(e) => {
+                setSubmissionFilter({
+                  ...submissionFilter,
+                  language: e.target.value,
+                });
+                setCurrentPage(1);
+              }}
+              className="submission-filter"
+            >
+              <option value="all">All Languages</option>
+              {uniqueLanguages.map((lang) => (
+                <option key={lang} value={lang}>
+                  {lang.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="submissions-stats">
+            <span>Total: {submissions.length}</span>
+            <span>Filtered: {filteredSubmissions.length}</span>
+          </div>
+        </div>
+
+        {paginatedSubmissions.length === 0 ? (
+          <p className="no-data">No code submissions found</p>
+        ) : (
+          <>
+            <div className="submissions-list">
+              {paginatedSubmissions.map((submission) => (
+                <div key={submission.submission_id} className="submission-card">
+                  <div className="submission-card-header">
+                    <div>
+                      <h4>{submission.username}</h4>
+                      <p className="submission-email">{submission.email}</p>
+                    </div>
+                    <span className="language-badge">
+                      {submission.language.toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="submission-card-body">
+                    <p>
+                      <strong>Problem:</strong> {submission.qname}
+                    </p>
+                    <p>
+                      <strong>Type:</strong> {submission.qtype}
+                    </p>
+                    <p className="submission-timestamp">
+                      {formatTimestamp(submission.submitted_at)} (
+                      {getTimeAgo(submission.submitted_at)})
+                    </p>
+                    <div className="code-preview">
+                      <pre>{submission.code.substring(0, 150)}...</pre>
+                    </div>
+                  </div>
+                  <button
+                    className="view-code-btn"
+                    onClick={() => setSelectedSubmission(submission)}
+                  >
+                    👁️ View Full Code
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="pagination">
+                <button
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="pagination-btn"
+                >
+                  ← Previous
+                </button>
+                <span className="pagination-info">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
+                >
+                  Next →
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="teacher-dashboard">
@@ -764,6 +980,15 @@ function TeacherDashboard() {
             👥 Students
           </button>
           <button
+            className={`tab ${selectedTab === "submissions" ? "active" : ""}`}
+            onClick={() => {
+              setSelectedTab("submissions");
+              setSelectedSubmission(null);
+            }}
+          >
+            📝 Submissions
+          </button>
+          <button
             className={`tab ${selectedTab === "events" ? "active" : ""}`}
             onClick={() => setSelectedTab("events")}
           >
@@ -780,6 +1005,7 @@ function TeacherDashboard() {
         <div className="dashboard-content">
           {selectedTab === "overview" && renderOverview()}
           {selectedTab === "users" && renderUsers()}
+          {selectedTab === "submissions" && renderSubmissions()}
           {selectedTab === "events" && renderEvents()}
           {selectedTab === "similarity" && renderSimilarity()}
         </div>
