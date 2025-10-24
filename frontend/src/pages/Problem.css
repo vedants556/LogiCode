@@ -80,34 +80,42 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 87, 87, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 87, 87, 0.4);
-  border-radius: 20px;
-  padding: 8px 16px;
-  box-shadow: 0 4px 15px rgba(255, 87, 87, 0.3);
-  animation: pulse 2s infinite;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 8px 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.timer-display:hover {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
 }
 
 .timer-icon {
-  font-size: 1rem;
-  animation: bounce 1s infinite;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .timer-text {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #ff5757;
-  letter-spacing: 1px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.5px;
 }
 
 /* Timer Warning Styles */
 .timer-warning {
-  background: rgba(255, 0, 0, 0.2) !important;
-  border: 2px solid #ff0000 !important;
-  box-shadow: 0 0 20px rgba(255, 0, 0, 0.5) !important;
-  animation: urgent-pulse 0.5s infinite !important;
+  background: rgba(255, 100, 100, 0.15) !important;
+  border: 1px solid rgba(255, 100, 100, 0.4) !important;
+  box-shadow: 0 2px 12px rgba(255, 87, 87, 0.2) !important;
+}
+
+.timer-warning .timer-text {
+  color: #ff6b6b !important;
 }
 
 .timer-warning-text {
@@ -115,47 +123,15 @@
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  background: #ff0000;
+  background: rgba(255, 87, 87, 0.9);
   color: white;
   padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  font-weight: 600;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
   white-space: nowrap;
-  animation: urgent-pulse 0.5s infinite;
+  margin-top: 4px;
   z-index: 1001;
-}
-
-@keyframes urgent-pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.8;
-    transform: scale(1.05);
-  }
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    box-shadow: 0 4px 15px rgba(255, 87, 87, 0.2);
-  }
-  50% {
-    box-shadow: 0 4px 25px rgba(255, 87, 87, 0.4);
-  }
-}
-
-@keyframes bounce {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
 }
 
 /* LeetCode Style Layout */
@@ -882,13 +858,30 @@
   }
 
   .timer-display {
-    flex-direction: column;
-    text-align: center;
-    gap: 10px;
+    flex-direction: row;
+    gap: 6px;
+    top: 75px;
+    padding: 6px 12px;
   }
 
   .timer-text {
-    font-size: 1rem;
+    font-size: 0.8rem;
+  }
+
+  .proctoring-indicator {
+    bottom: 15px;
+    left: 15px;
+    padding: 6px 12px;
+  }
+
+  .proctoring-text {
+    font-size: 0.75rem;
+  }
+
+  .violation-warning {
+    top: 130px;
+    max-width: calc(100% - 40px);
+    padding: 8px 14px;
   }
 
   .description-header {
@@ -926,12 +919,43 @@
   }
 
   .timer-display {
-    padding: 12px 20px;
+    padding: 6px 10px;
+    top: 70px;
+    right: 10px;
   }
 
   .timer-text {
-    font-size: 0.9rem;
-    letter-spacing: 1px;
+    font-size: 0.75rem;
+    letter-spacing: 0.3px;
+  }
+
+  .timer-icon {
+    font-size: 0.8rem;
+  }
+
+  .proctoring-indicator {
+    bottom: 10px;
+    left: 10px;
+    padding: 6px 10px;
+  }
+
+  .proctoring-text {
+    font-size: 0.7rem;
+  }
+
+  .proctoring-icon {
+    font-size: 0.8rem;
+  }
+
+  .violation-warning {
+    top: 120px;
+    right: 10px;
+    max-width: calc(100% - 20px);
+    padding: 8px 12px;
+  }
+
+  .violation-message {
+    font-size: 0.8rem;
   }
 
   .language-select {
@@ -1013,58 +1037,44 @@
 /* Proctoring Active Indicator */
 .proctoring-indicator {
   position: fixed;
-  top: 80px;
-  right: 20px;
-  background: linear-gradient(135deg, #f44336 0%, #e91e63 100%);
-  color: white;
-  padding: 12px 20px;
-  border-radius: 30px;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  color: rgba(255, 255, 255, 0.8);
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   display: flex;
   align-items: center;
-  gap: 10px;
-  z-index: 9999;
-  box-shadow: 0 4px 15px rgba(244, 67, 54, 0.4);
-  animation: slideInRight 0.5s ease;
+  gap: 8px;
+  z-index: 999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.proctoring-indicator:hover {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
 }
 
 .proctoring-icon {
-  font-size: 1.2rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .proctoring-text {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 500;
+  font-size: 0.8rem;
+  opacity: 0.9;
 }
 
 .proctoring-pulse {
-  width: 10px;
-  height: 10px;
-  background: white;
+  width: 6px;
+  height: 6px;
+  background: rgba(76, 175, 80, 0.8);
   border-radius: 50%;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.5;
-    transform: scale(1.2);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  opacity: 0.8;
 }
 
 /* Proctoring Notice Modal */
@@ -1196,42 +1206,42 @@
 /* Violation Warning Toast */
 .violation-warning {
   position: fixed;
-  top: 150px;
+  top: 140px;
   right: 20px;
-  background: linear-gradient(135deg, #ff9800 0%, #f44336 100%);
+  background: rgba(255, 152, 0, 0.9);
+  backdrop-filter: blur(10px);
   color: white;
-  padding: 16px 24px;
-  border-radius: 12px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 152, 0, 0.3);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   z-index: 10001;
-  box-shadow: 0 6px 20px rgba(244, 67, 54, 0.5);
-  animation: slideInRight 0.3s ease, shake 0.5s ease;
+  box-shadow: 0 2px 12px rgba(255, 152, 0, 0.3);
+  animation: slideInRight 0.3s ease;
   max-width: 400px;
 }
 
-@keyframes shake {
-  0%,
-  100% {
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
     transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-10px);
-  }
-  75% {
-    transform: translateX(10px);
+    opacity: 1;
   }
 }
 
 .violation-icon {
-  font-size: 1.5rem;
-  animation: pulse 1s infinite;
+  font-size: 1.1rem;
+  opacity: 0.9;
 }
 
 .violation-message {
-  font-weight: 600;
-  font-size: 1rem;
+  font-weight: 500;
+  font-size: 0.85rem;
 }
 
 /* Prevent text selection on problem description */

@@ -670,8 +670,7 @@ function Problem() {
               {(timeLeft % 60).toString().padStart(2, "0")}
             </div>
             {timeLeft <= 60 && timeLeft > 0 && (
-              <div className="timer-warning-text">
-                ⚠️ Less than 1 minute remaining!
+              <div className="timer-warning-text">1 minute left!
               </div>
             )}
           </div>
