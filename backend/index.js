@@ -1039,8 +1039,9 @@ app.post("/api/solved", (req, res) => {
   const userid = req.body.userid;
   const qid = req.body.qid;
 
+  // First check if already solved to prevent duplicates
   db.query(
-    "insert into solved(q_id, user_id) values (? , ?);",
+    "SELECT * FROM solved WHERE q_id = ? AND user_id = ?",
     [qid, userid],
     (err, result) => {
       if (err) {
@@ -1048,7 +1049,25 @@ app.post("/api/solved", (req, res) => {
         return;
       }
 
-      res.json({ status: "added" });
+      if (result.length > 0) {
+        // Already solved, don't insert duplicate
+        res.json({ status: "already_solved" });
+        return;
+      }
+
+      // Not solved yet, insert new record
+      db.query(
+        "INSERT INTO solved(q_id, user_id) VALUES (?, ?)",
+        [qid, userid],
+        (err, result) => {
+          if (err) {
+            res.json({ error: err });
+            return;
+          }
+
+          res.json({ status: "added" });
+        }
+      );
     }
   );
 });
@@ -1106,15 +1125,32 @@ app.post("/api/checkbyai", (req, res) => {
         const userid = req.body.userid;
         const qid = req.body.qid;
 
+        // Check if already solved before inserting
         db.query(
-          "insert into solved(q_id, user_id) values (? , ?);",
+          "SELECT * FROM solved WHERE q_id = ? AND user_id = ?",
           [qid, userid],
-          (err, result) => {
+          (err, checkResult) => {
             if (err) {
-              res.json({ error: err });
+              console.log("Error checking solved status:", err);
               return;
             }
-            console.log("added to db");
+
+            if (checkResult.length === 0) {
+              // Not solved yet, insert new record
+              db.query(
+                "INSERT INTO solved(q_id, user_id) VALUES (?, ?)",
+                [qid, userid],
+                (err, result) => {
+                  if (err) {
+                    console.log("Error inserting solved record:", err);
+                    return;
+                  }
+                  console.log("added to db");
+                }
+              );
+            } else {
+              console.log("already solved, skipping insert");
+            }
           }
         );
       }
@@ -1223,6 +1259,7 @@ app.get("/api/getleaders", authenticateUser, (req, res) => {
        COALESCE(COUNT(DISTINCT s.q_id), 0) AS question_count
 FROM users u
 LEFT JOIN solved s ON u.userid = s.user_id
+WHERE (u.role IS NULL OR (u.role != 'teacher' AND u.role != 'admin'))
 GROUP BY u.userid
 ORDER BY question_count DESC;
 `,
@@ -1993,6 +2030,60 @@ app.get(
             res.json(results);
           });
         });
+      });
+    });
+  }
+);
+
+// DELETE endpoint to clear proctoring events for a specific student
+app.delete(
+  "/api/teacher/clear-proctoring-events/:userid",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const userid = req.params.userid;
+
+    const query = "DELETE FROM proctoring_events WHERE user_id = ?";
+
+    db.query(query, [userid], (err, result) => {
+      if (err) {
+        console.error("Error clearing proctoring events:", err);
+        return res.status(500).json({
+          error: "Database error",
+          success: false,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Cleared ${result.affectedRows} proctoring event(s) for user ${userid}`,
+        deletedCount: result.affectedRows,
+      });
+    });
+  }
+);
+
+// DELETE endpoint to clear all proctoring events for all students
+app.delete(
+  "/api/teacher/clear-all-proctoring-events",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const query = "DELETE FROM proctoring_events";
+
+    db.query(query, [], (err, result) => {
+      if (err) {
+        console.error("Error clearing all proctoring events:", err);
+        return res.status(500).json({
+          error: "Database error",
+          success: false,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Cleared all ${result.affectedRows} proctoring event(s)`,
+        deletedCount: result.affectedRows,
       });
     });
   }

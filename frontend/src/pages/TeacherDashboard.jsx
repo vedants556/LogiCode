@@ -134,6 +134,120 @@ function TeacherDashboard() {
     }
   };
 
+  const clearUserProctoringEvents = async (userid) => {
+    if (
+      !confirm(
+        "Are you sure you want to clear all proctoring events for this student?"
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Show loading state
+      setLoading(true);
+
+      const response = await fetch(
+        `/api/teacher/clear-proctoring-events/${userid}`,
+        {
+          method: "DELETE",
+          headers: {
+            authorization: "Bearer " + localStorage.getItem("auth"),
+          },
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // Immediately update the state to show no events
+        if (userDetails && userDetails.user.userid === userid) {
+          setUserDetails({
+            ...userDetails,
+            events: [],
+          });
+        }
+
+        // Clear events from the main events list for this user
+        setEvents((prevEvents) =>
+          prevEvents.filter((e) => e.user_id !== userid)
+        );
+
+        // Refresh dashboard data in background
+        await fetchDashboardData();
+
+        setLoading(false);
+        // Show success message after data is refreshed
+        alert(data.message);
+      } else {
+        setLoading(false);
+        alert("Error clearing events: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      setLoading(false);
+      console.error("Error clearing proctoring events:", error);
+      alert("Failed to clear proctoring events");
+    }
+  };
+
+  const clearAllProctoringEvents = async () => {
+    if (
+      !confirm(
+        "⚠️ WARNING: This will permanently delete ALL proctoring events for ALL students. Are you absolutely sure?"
+      )
+    ) {
+      return;
+    }
+
+    // Double confirmation for this critical action
+    if (
+      !confirm(
+        "Last chance! Type OK in your mind and click OK to proceed with deleting ALL proctoring events."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      // Show loading state
+      setLoading(true);
+
+      const response = await fetch("/api/teacher/clear-all-proctoring-events", {
+        method: "DELETE",
+        headers: {
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        // Immediately clear all events from state
+        setEvents([]);
+
+        // If viewing a specific user, clear their events too
+        if (userDetails) {
+          setUserDetails({
+            ...userDetails,
+            events: [],
+          });
+        }
+
+        // Refresh dashboard data in background
+        await fetchDashboardData();
+
+        setLoading(false);
+        // Show success message after data is refreshed
+        alert(`✅ ${data.message}`);
+      } else {
+        setLoading(false);
+        alert("Error clearing events: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      setLoading(false);
+      console.error("Error clearing all proctoring events:", error);
+      alert("Failed to clear all proctoring events");
+    }
+  };
+
   const checkCodeSimilarity = async () => {
     if (!selectedProblemForSimilarity) {
       alert("Please select a problem to check");
@@ -409,7 +523,34 @@ function TeacherDashboard() {
           </div>
 
           <div className="user-detail-section">
-            <h3>Proctoring Events</h3>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "15px",
+              }}
+            >
+              <h3>Proctoring Events</h3>
+              {userDetails.events.length > 0 && (
+                <button
+                  className="clear-events-btn"
+                  style={{
+                    backgroundColor: "#f44336",
+                    color: "white",
+                    border: "none",
+                    padding: "8px 16px",
+                    borderRadius: "4px",
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    fontWeight: "500",
+                  }}
+                  onClick={() => clearUserProctoringEvents(selectedUser)}
+                >
+                  🗑️ Clear All Events
+                </button>
+              )}
+            </div>
             {userDetails.events.length === 0 ? (
               <p className="no-data">No events found</p>
             ) : (
@@ -433,7 +574,45 @@ function TeacherDashboard() {
         </div>
       ) : (
         <div className="users-table-container">
-          <h2>👥 All Students</h2>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "20px",
+            }}
+          >
+            <h2>👥 All Students</h2>
+            <button
+              className="clear-all-events-btn"
+              style={{
+                backgroundColor: "#d32f2f",
+                color: "white",
+                border: "none",
+                padding: "10px 20px",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontSize: "15px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                transition: "all 0.3s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = "#b71c1c";
+                e.target.style.transform = "scale(1.05)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = "#d32f2f";
+                e.target.style.transform = "scale(1)";
+              }}
+              onClick={clearAllProctoringEvents}
+            >
+              <span style={{ fontSize: "18px" }}>🗑️</span>
+              Clear All Students' Events
+            </button>
+          </div>
           {users.length === 0 ? (
             <div className="no-data-container">
               <p className="no-data">No students found in the system</p>

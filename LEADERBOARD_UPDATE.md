@@ -2,7 +2,7 @@
 
 ## Summary
 
-The leaderboard page has been completely redesigned to match the modern design system used throughout the LogiCode application.
+The leaderboard page has been completely redesigned to match the modern design system used throughout the LogiCode application. The leaderboard now only displays students, excluding teachers and admin users.
 
 ## Changes Made
 
@@ -14,7 +14,15 @@ The leaderboard page has been completely redesigned to match the modern design s
 - Purple/blue gradient theme (#667eea, #764ba2)
 - Responsive design for all screen sizes
 
-### 2. Updated Component: `frontend/src/pages/LeaderBoard.jsx`
+### 2. Updated Backend API: `backend/index.js`
+
+**Query Filter:**
+
+- The `/api/getleaders` endpoint now filters out teacher and admin roles
+- Only users with role='student' or role=NULL are included in rankings
+- Ensures fair competition by excluding non-student accounts
+
+### 3. Updated Component: `frontend/src/pages/LeaderBoard.jsx`
 
 **New Features:**
 
@@ -31,7 +39,7 @@ The leaderboard page has been completely redesigned to match the modern design s
 - Highlighted row for current user with "YOU" badge
 - Smooth animations and transitions
 
-### 3. Cleaned Up: `frontend/src/App.css`
+### 4. Cleaned Up: `frontend/src/App.css`
 
 - Removed old leaderboard styles (.lb, .lbheader, .rank, .leaderRoll, .lbnames)
 - Added comments indicating styles moved to dedicated file
