@@ -143,3 +143,4 @@ If you're not comfortable running SQL commands, you can also:
 2. Ask your hosting provider to run the commands
 3. Export your data, recreate the table, and import back
 
+
