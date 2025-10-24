@@ -3,11 +3,13 @@ import {
   Lightbulb,
   Users,
   Settings,
-  CodeXml,
+  Code2,
   BookOpenCheck,
   Brain,
   Zap,
   Star,
+  Shield,
+  Trophy,
 } from "lucide-react";
 import "./Objectives.css";
 import { SiGooglegemini } from "react-icons/si";
@@ -16,31 +18,45 @@ const Objectives = () => {
   const objectives = [
     {
       icon: <Brain className="objective-icon" />,
-      title: "AI-Guided Learning",
+      title: "AI-Powered Hints",
       description:
-        "Empower your coding journey with our AI-driven features like 'Ask Doubts to AI' and 'Check Code Using AI,' designed to offer personalized, teacher-like support.",
+        "Get intelligent, contextual hints via Google Gemini when stuck on problems. Our AI provides guidance without revealing direct solutions, fostering genuine learning.",
       color: "from-purple-500 to-pink-500",
     },
     {
-      icon: <Users className="objective-icon" />,
-      title: "User Friendliness",
+      icon: <Code2 className="objective-icon" />,
+      title: "Professional Code Editor",
       description:
-        "Start coding with no prior experience on any other platform. Write code however you want, we'll handle the rest!",
+        "Write code using Monaco Editor with syntax highlighting, auto-completion, and support for C, C++, Python, and Java.",
       color: "from-blue-500 to-cyan-500",
     },
     {
       icon: <Zap className="objective-icon" />,
-      title: "Fast & Efficient Execution",
+      title: "Secure Code Execution",
       description:
-        "Leverage the power of the Piston API, the fastest code execution engine, to run your code seamlessly and efficiently.",
+        "Powered by Piston API for sandboxed, secure code execution. Run and test your code with real-time feedback and performance metrics.",
       color: "from-yellow-500 to-orange-500",
     },
     {
-      icon: <BookOpenCheck className="objective-icon" />,
-      title: "Career-Focused Learning",
+      icon: <Users className="objective-icon" />,
+      title: "Teacher Dashboard",
       description:
-        "Access a curated set of DSA questions and C programming exercises tailored to align with your academic curriculum, helping you excel in your studies and career.",
+        "Comprehensive monitoring tools with real-time session tracking, proctoring event logs, plagiarism detection, and detailed student analytics.",
       color: "from-green-500 to-emerald-500",
+    },
+    {
+      icon: <Shield className="objective-icon" />,
+      title: "Advanced Security",
+      description:
+        "Built-in security with rate limiting, request validation, event batching, and suspicious activity detection to prevent system abuse.",
+      color: "from-red-500 to-orange-500",
+    },
+    {
+      icon: <Trophy className="objective-icon" />,
+      title: "Competitive Leaderboard",
+      description:
+        "Modern leaderboard with podium display, rankings by problems solved, and progress tracking. Compete with peers and track achievements.",
+      color: "from-indigo-500 to-purple-500",
     },
   ];
 
@@ -52,10 +68,13 @@ const Objectives = () => {
             <Star className="badge-icon" />
             <span>Our Objectives</span>
           </div>
-          <h2 className="objectives-title">Empowering Your Coding Journey</h2>
+          <h2 className="objectives-title">
+            Built for Students & Educational Institutions
+          </h2>
           <p className="objectives-subtitle">
-            Discover how our platform transforms the way you learn, practice,
-            and master programming with cutting-edge AI technology.
+            LogiCode combines powerful coding tools with comprehensive
+            proctoring features, making it perfect for learning DSA, conducting
+            assessments, and maintaining academic integrity.
           </p>
         </div>
 

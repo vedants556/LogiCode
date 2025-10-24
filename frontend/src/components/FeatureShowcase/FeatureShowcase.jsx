@@ -8,7 +8,6 @@ import {
   Code,
   BookOpen,
   Trophy,
-  ArrowRight,
   CheckCircle,
 } from "lucide-react";
 
@@ -17,30 +16,82 @@ const FeatureShowcase = () => {
 
   const features = [
     {
-      icon: <Users />,
-      title: "Community Driven",
+      icon: <Code />,
+      title: "Multi-Language Support",
       description:
-        "Learn from peers, share solutions, and grow together in our vibrant coding community.",
+        "Write code in C, C++, Python, or Java with Monaco Editor integration and real-time execution via Piston API.",
       benefits: [
-        "Peer learning",
-        "Solution sharing",
-        "Code reviews",
-        "Mentorship programs",
+        "4 Programming Languages",
+        "Monaco Editor (VS Code)",
+        "Syntax Highlighting",
+        "Auto-completion Support",
       ],
       color: "from-blue-500 to-cyan-500",
     },
     {
-      icon: <Target />,
-      title: "Career Focused",
+      icon: <Brain />,
+      title: "AI-Powered Assistance",
       description:
-        "Master DSA and system design with industry-relevant problems and interview preparation.",
+        "Get intelligent hints using Google Gemini AI without revealing solutions. Perfect for learning and problem-solving.",
       benefits: [
-        "Interview prep",
-        "DSA mastery",
-        "System design",
-        "Industry insights",
+        "Google Gemini Integration",
+        "Contextual Hints",
+        "No Direct Solutions",
+        "Learning-Focused Guidance",
+      ],
+      color: "from-purple-500 to-pink-500",
+    },
+    {
+      icon: <Zap />,
+      title: "Real-Time Proctoring",
+      description:
+        "Comprehensive monitoring system tracking tab switches, copy/paste activities, DevTools access, and session duration.",
+      benefits: [
+        "Tab Switch Detection",
+        "Copy/Paste Monitoring",
+        "DevTools Prevention",
+        "Live Session Tracking",
+      ],
+      color: "from-red-500 to-orange-500",
+    },
+    {
+      icon: <Target />,
+      title: "Plagiarism Detection",
+      description:
+        "Advanced code similarity checking using Levenshtein algorithm with configurable thresholds and side-by-side comparison.",
+      benefits: [
+        "Levenshtein Algorithm",
+        "85% Similarity Threshold",
+        "Code Normalization",
+        "Visual Comparison Tool",
       ],
       color: "from-green-500 to-emerald-500",
+    },
+    {
+      icon: <Trophy />,
+      title: "Teacher Dashboard",
+      description:
+        "God-level monitoring with real-time session tracking, event logs, student analytics, and comprehensive proctoring controls.",
+      benefits: [
+        "Active Session Monitoring",
+        "Event Severity Levels",
+        "Student Analytics",
+        "Plagiarism Checker",
+      ],
+      color: "from-yellow-500 to-amber-500",
+    },
+    {
+      icon: <BookOpen />,
+      title: "LeetCode-Style Testing",
+      description:
+        "Run code with all test cases before submission. Timer-based auto-submit ensures fair competition and time management.",
+      benefits: [
+        "Run All Test Cases",
+        "Submit Validation",
+        "Timer Auto-Submit",
+        "Performance Metrics",
+      ],
+      color: "from-indigo-500 to-blue-500",
     },
   ];
 
@@ -54,10 +105,13 @@ const FeatureShowcase = () => {
                 <span className="badge-icon">⚡</span>
                 <span>Everything You Need</span>
               </div>
-              <h2 className="section-title">Code Smarter, Ship Faster!</h2>
+              <h2 className="section-title">
+                Comprehensive Coding Platform with Advanced Proctoring
+              </h2>
               <p className="section-description">
-                Our platform is built to supercharge every step of your
-                development workflow with cutting-edge AI technology.
+                LogiCode provides a complete solution for educational
+                institutions with multi-language support, AI assistance,
+                real-time monitoring, and plagiarism detection.
               </p>
             </div>
 
@@ -83,10 +137,6 @@ const FeatureShowcase = () => {
                       </li>
                     ))}
                   </ul>
-                  <div className="feature-cta">
-                    <span>Learn More</span>
-                    <ArrowRight className="arrow-icon" />
-                  </div>
                 </div>
               ))}
             </div>

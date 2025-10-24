@@ -7,29 +7,34 @@ const FAQ = () => {
 
   const faqs = [
     {
-      question: "How does the AI-powered learning work?",
+      question: "What programming languages does LogiCode support?",
       answer:
-        "The AI analyzes your coding patterns, identifies knowledge gaps, and creates personalized learning paths. It provides real-time feedback, suggests improvements, and adapts difficulty based on your progress. The system learns from your interactions to provide increasingly relevant assistance.",
+        "LogiCode currently supports 4 programming languages: C, C++, Python, and Java. Each language has full support with syntax highlighting, auto-completion via Monaco Editor, and secure code execution through the Piston API.",
     },
     {
-      question: "What programming languages are supported?",
+      question: "How does the AI assistance work?",
       answer:
-        "We support 50+ programming languages including Python, Java, C++, JavaScript, Go, Rust, and many more. Our execution engine can run code in real-time with sub-second response times, making it perfect for learning and practice.",
+        "LogiCode integrates Google Gemini AI to provide intelligent hints when you're stuck on a problem. The AI analyzes your problem and code to give contextual guidance without revealing direct solutions, helping you learn and develop problem-solving skills.",
     },
     {
-      question: "Is there a community aspect to the platform?",
+      question: "What is the proctoring system?",
       answer:
-        "Yes! You can share solutions, get code reviews from peers, participate in discussions, and learn from other developers. Our community features include solution sharing, peer mentoring, and collaborative problem-solving sessions.",
+        "Our proctoring system monitors student activity during coding sessions, including tab switches, copy/paste operations, and DevTools access attempts. Teachers can view real-time sessions, check event logs with severity levels, and use plagiarism detection to ensure academic integrity.",
     },
     {
-      question: "How does the career-focused learning help?",
+      question: "How does plagiarism detection work?",
       answer:
-        "Our curriculum is designed with industry requirements in mind. We offer interview preparation, DSA mastery paths, system design courses, and real-world project scenarios. Many of our users have successfully landed jobs at top tech companies.",
+        "LogiCode uses the Levenshtein distance algorithm to compare code submissions between students. Code is normalized (removing whitespace and comments) before comparison. The system flags submissions with more than 85% similarity, and teachers can view side-by-side comparisons.",
     },
     {
-      question: "What's the pricing structure?",
+      question: "What features are available for teachers?",
       answer:
-        "We offer a free tier with basic features and limited AI assistance. Our premium plans include unlimited AI interactions, advanced analytics, priority support, and access to exclusive content. We also have student discounts and team plans for organizations.",
+        "Teachers get access to a comprehensive dashboard with real-time session monitoring, proctoring event logs (categorized by severity: low, medium, high), student analytics, plagiarism checker, and detailed activity reports for each student.",
+    },
+    {
+      question: "What is the timer auto-submit feature?",
+      answer:
+        "For timed problems, LogiCode automatically submits your code when the timer reaches zero. You'll get a warning at 1 minute remaining, and then a 3-second notification before automatic submission. This ensures fair competition and time management.",
     },
   ];
 
@@ -49,7 +54,8 @@ const FAQ = () => {
               </div>
               <h2 className="section-title">Frequently Asked Questions</h2>
               <p className="section-description">
-                Got Questions? We've Got the Answers.
+                Everything you need to know about LogiCode's features and
+                capabilities.
               </p>
             </div>
 

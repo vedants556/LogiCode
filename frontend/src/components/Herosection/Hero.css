@@ -100,10 +100,13 @@
 
 .hero-title {
   font-size: 3.5rem;
-  font-weight: 800;
-  line-height: 1.1;
+  font-weight: 700;
+  line-height: 1.2;
   color: #fff;
-  margin: 0;
+  margin: 0 0 1.5rem 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Poppins",
+    "SF Pro Display", sans-serif;
+  letter-spacing: -0.02em;
 }
 
 .gradient-text {
@@ -114,10 +117,14 @@
 }
 
 .hero-description {
-  font-size: 1.2rem;
-  line-height: 1.6;
-  color: rgba(255, 255, 255, 0.8);
-  max-width: 500px;
+  font-size: 1.125rem;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 550px;
+  margin-bottom: 2rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter",
+    sans-serif;
+  font-weight: 400;
 }
 
 .hero-stats {

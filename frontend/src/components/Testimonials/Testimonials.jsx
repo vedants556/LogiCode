@@ -7,40 +7,40 @@ const Testimonials = () => {
 
   const testimonials = [
     {
-      name: "Sarah Chen",
-      role: "Software Engineer at Google",
-      company: "Google",
+      name: "Student A",
+      role: "Computer Science Student",
+      company: "Engineering College",
       avatar:
-        "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face",
+        "https://ui-avatars.com/api/?name=Student+A&background=667eea&color=fff&size=150",
+      rating: 5,
+      text: "The multi-language support and Monaco Editor made practicing DSA problems so much easier. The AI hints helped me learn without just copying solutions. Great platform for students!",
+    },
+    {
+      name: "Student B",
+      role: "CS Undergraduate",
+      company: "University",
+      avatar:
+        "https://ui-avatars.com/api/?name=Student+B&background=764ba2&color=fff&size=150",
+      rating: 5,
+      text: "I love the LeetCode-style interface with the Run and Submit buttons. Being able to test all test cases before submitting helped me understand my mistakes better.",
+    },
+    {
+      name: "Teacher C",
+      role: "Computer Science Faculty",
+      company: "Educational Institution",
+      avatar:
+        "https://ui-avatars.com/api/?name=Teacher+C&background=f093fb&color=fff&size=150",
+      rating: 5,
+      text: "The teacher dashboard with proctoring features is exactly what we needed. Real-time monitoring, plagiarism detection, and detailed analytics make conducting assessments much more secure and manageable.",
+    },
+    {
+      name: "Student D",
+      role: "Programming Enthusiast",
+      company: "Tech College",
+      avatar:
+        "https://ui-avatars.com/api/?name=Student+D&background=4facfe&color=fff&size=150",
       rating: 4,
-      text: "LogiCode transformed my coding journey completely. The AI-powered feedback helped me understand complex algorithms in ways I never thought possible. I landed my dream job at Google thanks to the comprehensive DSA preparation.",
-    },
-    {
-      name: "Alex Rodriguez",
-      role: "Full Stack Developer at Microsoft",
-      company: "Microsoft",
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face",
-      rating: 5,
-      text: "The instant code execution and AI assistance made learning so much more efficient. I went from beginner to confident developer in just 6 months. The community support is incredible!",
-    },
-    {
-      name: "Priya Sharma",
-      role: "Data Scientist at Amazon",
-      company: "Amazon",
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=150&h=150&fit=crop&crop=face",
-      rating: 5,
-      text: "As someone switching careers, LogiCode made the transition seamless. The personalized learning paths and real-time feedback helped me master programming concepts quickly. Highly recommended!",
-    },
-    {
-      name: "David Kim",
-      role: "Tech Lead at Meta",
-      company: "Meta",
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face",
-      rating: 5,
-      text: "The AI-powered code review feature is game-changing. It's like having a senior developer reviewing your code 24/7. My coding skills improved dramatically in just a few months.",
+      text: "The timer auto-submit feature keeps me focused during practice. The leaderboard is motivating, and I can track my progress as I solve more problems. Really helpful for competitive programming practice!",
     },
   ];
 

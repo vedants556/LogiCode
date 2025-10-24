@@ -7,10 +7,10 @@ const Hero = () => {
   const [currentFeature, setCurrentFeature] = useState(0);
 
   const features = [
-    { icon: <Code />, text: "AI-Powered Learning" },
-    { icon: <Zap />, text: "Fast Execution" },
-    { icon: <Users />, text: "Community Driven" },
-    { icon: <Star />, text: "Career Focused" },
+    { icon: <Code />, text: "4 Languages Supported" },
+    { icon: <Zap />, text: "Real-Time Proctoring" },
+    { icon: <Users />, text: "Plagiarism Detection" },
+    { icon: <Star />, text: "AI-Powered Hints" },
   ];
 
   useEffect(() => {
@@ -30,37 +30,18 @@ const Hero = () => {
 
       <div className="hero-content">
         <div className="hero-text">
-          <div className="hero-badge">
-            <span className="badge-icon">🚀</span>
-            <span>Smarter Code, Less Effort!</span>
-          </div>
-
           <h1 className="hero-title">
-            Supercharge Your
-            <span className="gradient-text"> Programming Journey</span>
-            with AI
+            Master DSA with
+            <span className="gradient-text"> AI-Powered Learning</span> &
+            Proctoring
           </h1>
 
           <p className="hero-description">
-            Your AI pair programmer to write, debug, and refactor code faster
-            with a fully integrated development experience. Master DSA, practice
-            coding, and excel in your career.
+            A comprehensive coding platform with multi-language support,
+            real-time proctoring, AI assistance via Google Gemini, and
+            plagiarism detection. Perfect for students and educational
+            institutions.
           </p>
-
-          <div className="hero-stats">
-            <div className="stat-item">
-              <span className="stat-number">10K+</span>
-              <span className="stat-label">Students</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">50+</span>
-              <span className="stat-label">Languages</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-number">99%</span>
-              <span className="stat-label">Success Rate</span>
-            </div>
-          </div>
 
           <div className="hero-buttons">
             <Link to={"/home"} className="btn-primary">
@@ -74,12 +55,12 @@ const Hero = () => {
           </div>
 
           <div className="trust-indicators">
-            <p className="trust-text">Trusted by developers at</p>
+            <p className="trust-text">Key Features</p>
             <div className="company-logos">
-              <div className="logo-item">Google</div>
-              <div className="logo-item">Microsoft</div>
-              <div className="logo-item">Amazon</div>
-              <div className="logo-item">Meta</div>
+              <div className="logo-item">Monaco Editor</div>
+              <div className="logo-item">Piston API</div>
+              <div className="logo-item">Google Gemini</div>
+              <div className="logo-item">Real-Time Tracking</div>
             </div>
           </div>
         </div>

@@ -27,27 +27,30 @@ const Footer = () => {
   const footerLinks = {
     platform: [
       { name: "Features", href: "#features" },
-      { name: "Pricing", href: "#pricing" },
-      { name: "API", href: "#api" },
-      { name: "Documentation", href: "#docs" },
+      { name: "Problems", href: "/home" },
+      { name: "Leaderboard", href: "/leaderboard" },
+      { name: "Teacher Dashboard", href: "/teacher-dashboard" },
     ],
-    developers: [
-      { name: "Community", href: "#community" },
-      { name: "Blog", href: "#blog" },
-      { name: "Tutorials", href: "#tutorials" },
-      { name: "Support", href: "#support" },
+    features: [
+      { name: "Multi-Language Support", href: "#features" },
+      { name: "AI Assistance", href: "#features" },
+      { name: "Proctoring System", href: "#features" },
+      { name: "Plagiarism Detection", href: "#features" },
     ],
     resources: [
-      { name: "Privacy Policy", href: "#privacy" },
-      { name: "Terms of Service", href: "#terms" },
-      { name: "Security", href: "#security" },
-      { name: "Status", href: "#status" },
-    ],
-    company: [
-      { name: "About Us", href: "#about" },
-      { name: "Careers", href: "#careers" },
-      { name: "Press", href: "#press" },
+      {
+        name: "GitHub Repository",
+        href: "https://github.com/vedants556/logicode",
+      },
+      { name: "Documentation", href: "#about" },
+      { name: "FAQ", href: "#faq" },
       { name: "Contact", href: "#contact" },
+    ],
+    technologies: [
+      { name: "Monaco Editor", href: "#" },
+      { name: "Piston API", href: "#" },
+      { name: "Google Gemini", href: "#" },
+      { name: "React & Node.js", href: "#" },
     ],
   };
 
@@ -66,44 +69,19 @@ const Footer = () => {
               <span className="logo-text">logicode</span>
             </div>
             <p className="footer-description">
-              Empowering developers with AI-powered coding assistance. Master
-              programming, excel in your career, and build the future.
+              A comprehensive coding platform with multi-language support,
+              real-time proctoring, and AI assistance for students and
+              educational institutions.
             </p>
             <div className="footer-social">
               <a
-                href="https://github.com"
+                href="https://github.com/vedants556/logicode"
                 aria-label="GitHub"
                 className="social-link"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <Github className="social-icon" />
-              </a>
-              <a
-                href="https://twitter.com"
-                aria-label="Twitter"
-                className="social-link"
-              >
-                <Twitter className="social-icon" />
-              </a>
-              <a
-                href="https://linkedin.com"
-                aria-label="LinkedIn"
-                className="social-link"
-              >
-                <Linkedin className="social-icon" />
-              </a>
-              <a
-                href="https://instagram.com"
-                aria-label="Instagram"
-                className="social-link"
-              >
-                <Instagram className="social-icon" />
-              </a>
-              <a
-                href="https://facebook.com"
-                aria-label="Facebook"
-                className="social-link"
-              >
-                <Facebook className="social-icon" />
               </a>
             </div>
           </div>
@@ -123,9 +101,9 @@ const Footer = () => {
             </div>
 
             <div className="footer-column">
-              <h4 className="column-title">Developers</h4>
+              <h4 className="column-title">Features</h4>
               <ul className="column-links">
-                {footerLinks.developers.map((link, index) => (
+                {footerLinks.features.map((link, index) => (
                   <li key={index}>
                     <a href={link.href} className="footer-link">
                       {link.name}
@@ -149,9 +127,9 @@ const Footer = () => {
             </div>
 
             <div className="footer-column">
-              <h4 className="column-title">Company</h4>
+              <h4 className="column-title">Technologies</h4>
               <ul className="column-links">
-                {footerLinks.company.map((link, index) => (
+                {footerLinks.technologies.map((link, index) => (
                   <li key={index}>
                     <a href={link.href} className="footer-link">
                       {link.name}
@@ -164,10 +142,10 @@ const Footer = () => {
 
           <div className="footer-newsletter">
             <div className="newsletter-content">
-              <h4 className="newsletter-title">Stay in the loop</h4>
+              <h4 className="newsletter-title">Stay Updated</h4>
               <p className="newsletter-description">
-                Get the latest updates on new features, tutorials, and coding
-                tips.
+                Get the latest updates on new features and platform
+                improvements.
               </p>
               <form
                 onSubmit={handleNewsletterSubmit}
@@ -194,31 +172,31 @@ const Footer = () => {
 
         <div className="footer-stats">
           <div className="stat-item">
-            <Users className="stat-icon" />
+            <Code className="stat-icon" />
             <div className="stat-content">
-              <span className="stat-number">10K+</span>
-              <span className="stat-label">Active Users</span>
+              <span className="stat-number">4</span>
+              <span className="stat-label">Languages</span>
             </div>
           </div>
           <div className="stat-item">
-            <Code className="stat-icon" />
+            <Users className="stat-icon" />
             <div className="stat-content">
-              <span className="stat-number">50+</span>
-              <span className="stat-label">Languages</span>
+              <span className="stat-number">3</span>
+              <span className="stat-label">User Roles</span>
             </div>
           </div>
           <div className="stat-item">
             <BookOpen className="stat-icon" />
             <div className="stat-content">
-              <span className="stat-number">1000+</span>
-              <span className="stat-label">Problems</span>
+              <span className="stat-number">24/7</span>
+              <span className="stat-label">Monitoring</span>
             </div>
           </div>
           <div className="stat-item">
             <HelpCircle className="stat-icon" />
             <div className="stat-content">
-              <span className="stat-number">24/7</span>
-              <span className="stat-label">AI Support</span>
+              <span className="stat-number">AI</span>
+              <span className="stat-label">Google Gemini</span>
             </div>
           </div>
         </div>
@@ -226,7 +204,7 @@ const Footer = () => {
         <div className="footer-bottom">
           <div className="footer-bottom-content">
             <p className="copyright">
-              © 2025 LogiCode. Built by developers for developers.
+              © 2025 LogiCode. Built for students and educational institutions.
             </p>
             <div className="footer-bottom-links">
               <a href="#privacy" className="bottom-link">
