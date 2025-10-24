@@ -2,16 +2,16 @@ name change ✅
 make git repo ✅
 login signup page ✅
 db la online shift ✅
-piston api explore 
-proctoring
-admin dashboard
+piston api explore ✅
+proctoring ✅
+admin dashboard ✅
 fine-tune llm 
 
 
 in add question section, the person should be able to select multiple languages and depending upon the number of selections the solutions and template code section should increase, this should also reflect in frontend so when user is solving the problem he should be able to select just the selected languages
 
-# procturing visual bug overlaps with timer 
-# when user refreshes the page the code goes away and timeer resets
-# only display the language relevant test cases
-# ai help button use only once , user shold know this 
+# procturing visual bug overlaps with timer  ✅
+# when user refreshes the page the code goes away and timeer resets ✅
+# only display the language relevant test cases ✅
+# ai help button use only once , user shold know this ✅
 # error should not be visible the piston stuff

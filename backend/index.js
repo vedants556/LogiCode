@@ -1058,8 +1058,23 @@ app.post("/api/tcvalid", async (req, res) => {
 
 app.get("/api/getTestcases/:qid", (req, res) => {
   const qid = req.params.qid;
+  const language = req.query.language; // Get language from query parameter
 
-  db.query("select * from testcases where q_id = ?", [qid], (err, result) => {
+  let query = "select * from testcases where q_id = ?";
+  let params = [qid];
+
+  // If language is specified, filter by language
+  if (language) {
+    query += " AND language = ?";
+    params.push(language);
+    console.log(
+      `📋 Fetching test cases for problem ${qid} in language: ${language}`
+    );
+  } else {
+    console.log(`📋 Fetching all test cases for problem ${qid}`);
+  }
+
+  db.query(query, params, (err, result) => {
     if (err) {
       res.json({ error: err });
       return;

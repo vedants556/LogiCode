@@ -20,6 +20,7 @@ function Problem() {
   const [timer, setTimer] = useState(null); // in seconds
   const [timeLeft, setTimeLeft] = useState(null); // in seconds
   const timerInterval = useRef(null);
+  const timerStartTime = useRef(null); // Track when timer started
   //description, usecase
 
   //get info, testcases using useEffect
@@ -48,6 +49,8 @@ function Problem() {
   const [leftPanelTab, setLeftPanelTab] = useState("description");
   const [aiResponse, setAiResponse] = useState("");
   const [showAI, setShowAI] = useState(false);
+  const [aiHelpUsed, setAiHelpUsed] = useState(false);
+  const [aiUsageCount, setAiUsageCount] = useState(0);
   const [logged, islogged] = useState(true);
   const [socket, setSocket] = useState(null);
   const [live, setLive] = useState(false);
@@ -65,6 +68,57 @@ function Problem() {
   const [showViolationWarning, setShowViolationWarning] = useState(false);
 
   // const [q_id, setQid] = useState(-1)
+
+  // Persist code to localStorage when it changes
+  useEffect(() => {
+    if (value && qid && selectedLanguage) {
+      const storageKey = `problem_${qid}_${selectedLanguage}_code`;
+      localStorage.setItem(storageKey, value);
+    }
+  }, [value, qid, selectedLanguage]);
+
+  // Persist timer state to localStorage
+  useEffect(() => {
+    if (timeLeft !== null && qid && timer) {
+      const storageKey = `problem_${qid}_timer`;
+      const timerData = {
+        timeLeft,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(storageKey, JSON.stringify(timerData));
+    }
+  }, [timeLeft, qid, timer]);
+
+  // Clean up localStorage when problem is solved
+  useEffect(() => {
+    if (solved && qid) {
+      // Clear all saved code for all languages for this problem
+      Object.keys(availableLanguages).forEach((lang) => {
+        const codeKey = `problem_${qid}_${lang}_code`;
+        localStorage.removeItem(codeKey);
+      });
+      // Clear timer data
+      const timerKey = `problem_${qid}_timer`;
+      localStorage.removeItem(timerKey);
+      // Clear AI help usage
+      const aiHelpKey = `problem_${qid}_ai_help_used`;
+      localStorage.removeItem(aiHelpKey);
+      console.log("🧹 Cleared saved data for solved problem");
+    }
+  }, [solved, qid, availableLanguages]);
+
+  // Load AI help usage state from localStorage on mount
+  useEffect(() => {
+    if (qid) {
+      const aiHelpKey = `problem_${qid}_ai_help_used`;
+      const savedAiHelpState = localStorage.getItem(aiHelpKey);
+      if (savedAiHelpState === "true") {
+        setAiHelpUsed(true);
+        setAiUsageCount(1);
+        console.log("⚠️ AI Help already used for this problem");
+      }
+    }
+  }, [qid]);
 
   // Proctoring: Track tab visibility changes
   useEffect(() => {
@@ -431,8 +485,13 @@ function Problem() {
       }
     }
 
-    async function getTestcases() {
-      const response = await fetch("/api/getTestcases/" + qid);
+    async function getTestcases(language = null) {
+      let url = `/api/getTestcases/${qid}`;
+      if (language) {
+        url += `?language=${language}`;
+        console.log(`📋 Fetching test cases for language: ${language}`);
+      }
+      const response = await fetch(url);
       const data = await response.json();
       console.log(data);
       setTestcases(data);
@@ -462,9 +521,26 @@ function Problem() {
 
     checkLogged();
     getLanguages();
+    // Initial test case fetch - will be refetched when language is selected
     getTestcases();
     checkSolved();
   }, []);
+
+  // Refetch test cases when selected language changes
+  useEffect(() => {
+    if (selectedLanguage && qid) {
+      async function fetchLanguageTestcases() {
+        let url = `/api/getTestcases/${qid}?language=${selectedLanguage}`;
+        console.log(
+          `🔄 Refetching test cases for language: ${selectedLanguage}`
+        );
+        const response = await fetch(url);
+        const data = await response.json();
+        setTestcases(data);
+      }
+      fetchLanguageTestcases();
+    }
+  }, [selectedLanguage, qid]);
 
   // Load problem info after languages are loaded
   useEffect(() => {
@@ -493,11 +569,19 @@ function Problem() {
             const firstLang = data[0].selected_languages[0];
             setSelectedLanguage(firstLang);
 
-            // Set the language-specific template as the initial code
-            if (
+            // Check localStorage for saved code first
+            const storageKey = `problem_${qid}_${firstLang}_code`;
+            const savedCode = localStorage.getItem(storageKey);
+
+            if (savedCode) {
+              // Load saved code from localStorage
+              setValue(savedCode);
+              console.log("✅ Loaded saved code from localStorage");
+            } else if (
               data[0].language_templates &&
               data[0].language_templates[firstLang]
             ) {
+              // Set the language-specific template as the initial code
               setValue(data[0].language_templates[firstLang]);
             } else {
               // Fallback to default code if no language template exists
@@ -514,7 +598,36 @@ function Problem() {
         if (data[0].timer && data[0].timer > 0) {
           const seconds = parseInt(data[0].timer) * 60;
           setTimer(seconds);
-          setTimeLeft(seconds);
+
+          // Check localStorage for saved timer state
+          const timerStorageKey = `problem_${qid}_timer`;
+          const savedTimerData = localStorage.getItem(timerStorageKey);
+
+          if (savedTimerData) {
+            try {
+              const { timeLeft: savedTimeLeft, timestamp } =
+                JSON.parse(savedTimerData);
+              const elapsedSeconds = Math.floor(
+                (Date.now() - timestamp) / 1000
+              );
+              const remainingTime = Math.max(0, savedTimeLeft - elapsedSeconds);
+
+              if (remainingTime > 0) {
+                setTimeLeft(remainingTime);
+                console.log(
+                  `✅ Resumed timer: ${remainingTime} seconds remaining`
+                );
+              } else {
+                setTimeLeft(0);
+                console.log("⏰ Timer expired while away");
+              }
+            } catch (error) {
+              console.error("Error loading saved timer:", error);
+              setTimeLeft(seconds);
+            }
+          } else {
+            setTimeLeft(seconds);
+          }
         }
       }
       getProblemInfo();
@@ -545,6 +658,10 @@ function Problem() {
     );
     setShowNotification(true);
 
+    // Clear timer from localStorage since time is up
+    const timerKey = `problem_${qid}_timer`;
+    localStorage.removeItem(timerKey);
+
     // Auto-submit by triggering the submit button click
     setTimeout(() => {
       // Find and click the submit button
@@ -561,12 +678,20 @@ function Problem() {
   const handleLanguageChange = (newLanguage) => {
     setSelectedLanguage(newLanguage);
 
-    // Use language-specific template if available
-    if (
+    // Check localStorage for saved code in the new language first
+    const storageKey = `problem_${qid}_${newLanguage}_code`;
+    const savedCode = localStorage.getItem(storageKey);
+
+    if (savedCode) {
+      // Load saved code from localStorage
+      setValue(savedCode);
+      console.log(`✅ Loaded saved ${newLanguage} code from localStorage`);
+    } else if (
       problemData.length > 0 &&
       problemData[0].language_templates &&
       problemData[0].language_templates[newLanguage]
     ) {
+      // Use language-specific template if available
       setValue(problemData[0].language_templates[newLanguage]);
     } else if (availableLanguages[newLanguage]) {
       // Fallback to default language template
@@ -576,6 +701,15 @@ function Problem() {
 
   // AI Help function
   async function getAIHelp() {
+    // Check if AI help has already been used
+    if (aiHelpUsed) {
+      setAiResponse(
+        "⚠️ AI Help can only be used once per problem. You have already used your AI assistance for this problem."
+      );
+      setShowAI(true);
+      return;
+    }
+
     setShowAI(true);
     setAiResponse("AI is analyzing your code...");
 
@@ -594,6 +728,18 @@ function Problem() {
 
       const data = await response.json();
       setAiResponse(data.response);
+
+      // Mark AI help as used and save to localStorage
+      setAiHelpUsed(true);
+      setAiUsageCount(1);
+      const aiHelpKey = `problem_${qid}_ai_help_used`;
+      localStorage.setItem(aiHelpKey, "true");
+      console.log("✅ AI Help used (1/1 remaining: 0)");
+
+      // Log proctoring event
+      if (proctoringEnabled) {
+        logProctoringEvent("ai_help_used", "User used AI assistance", "medium");
+      }
     } catch (error) {
       console.error("Error getting AI help:", error);
       setAiResponse("An error occurred while getting AI assistance");
@@ -670,8 +816,7 @@ function Problem() {
               {(timeLeft % 60).toString().padStart(2, "0")}
             </div>
             {timeLeft <= 60 && timeLeft > 0 && (
-              <div className="timer-warning-text">1 minute left!
-              </div>
+              <div className="timer-warning-text">1 minute left!</div>
             )}
           </div>
         )}
@@ -754,9 +899,31 @@ function Problem() {
                 <div className="ai-help-content">
                   <div className="ai-help-header">
                     <h3>AI Assistant</h3>
-                    <button className="get-ai-help-btn" onClick={getAIHelp}>
-                      Get AI Help
+                    <button
+                      className={`get-ai-help-btn ${
+                        aiHelpUsed ? "disabled" : ""
+                      }`}
+                      onClick={getAIHelp}
+                      disabled={aiHelpUsed}
+                    >
+                      {aiHelpUsed ? "✓ AI Help Used" : "Get AI Help"}
                     </button>
+                  </div>
+
+                  <div className="ai-usage-notice">
+                    <div className="notice-icon-small">ℹ️</div>
+                    <div className="notice-text-small">
+                      <strong>One-time use:</strong> AI help can only be used
+                      once per problem.
+                      {aiHelpUsed ? (
+                        <span className="used-badge"> Already used ✓</span>
+                      ) : (
+                        <span className="available-badge">
+                          {" "}
+                          Available (1/1)
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {showAI && (
