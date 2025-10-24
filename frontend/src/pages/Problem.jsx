@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import Output from "../components/Output";
@@ -7,6 +7,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar/Navbar";
 import { Link } from "react-router-dom";
 import "./Problem.css";
+import { ProctoringEventThrottler } from "../utils/security-utils";
+import {
+  fetchWithErrorHandling,
+  safeProctoringCall,
+  ErrorType,
+  failedRequestQueue,
+} from "../utils/error-handler";
 
 function Problem() {
   // Timer state
@@ -239,29 +246,75 @@ function Problem() {
     };
   }, [problemData, qid, proctoringEnabled]);
 
-  // Proctoring helper functions
+  // Proctoring event throttler - prevents spam
+  const proctoringThrottler = useMemo(() => new ProctoringEventThrottler(), []);
+
+  // Proctoring helper functions - WITH ENHANCED ERROR HANDLING
   const logProctoringEvent = async (
     event_type,
     event_details,
     severity = "low"
   ) => {
-    try {
-      await fetch("/api/proctoring/log-event", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: "Bearer " + localStorage.getItem("auth"),
-        },
-        body: JSON.stringify({
-          q_id: qid,
-          event_type,
-          event_details,
-          severity,
-        }),
-      });
-    } catch (error) {
-      console.error("Error logging proctoring event:", error);
+    // Check if event is allowed (rate limiting + deduplication)
+    const check = proctoringThrottler.canLogEvent(event_type, event_details);
+
+    if (!check.allowed) {
+      // Event blocked by throttler - don't spam console
+      if (check.reason === "rate_limit") {
+        console.warn(`⚠️ Proctoring event rate limit: ${check.message}`);
+      }
+      return; // Silently ignore blocked events
     }
+
+    // Use safe proctoring call (doesn't disrupt user experience on failure)
+    await safeProctoringCall(
+      async () => {
+        const response = await fetchWithErrorHandling(
+          "/api/proctoring/log-event",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              authorization: "Bearer " + localStorage.getItem("auth"),
+            },
+            body: JSON.stringify({
+              q_id: qid,
+              event_type,
+              event_details,
+              severity,
+            }),
+          },
+          {
+            maxRetries: 1, // Only retry once for proctoring events
+            retryDelay: 500,
+            timeout: 5000, // 5 second timeout
+          }
+        );
+
+        return await response.json();
+      },
+      (error) => {
+        // Fallback: Queue for later if it's a network error
+        if (error.type === ErrorType.NETWORK) {
+          failedRequestQueue.add({
+            fn: () =>
+              fetch("/api/proctoring/log-event", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  authorization: "Bearer " + localStorage.getItem("auth"),
+                },
+                body: JSON.stringify({
+                  q_id: qid,
+                  event_type,
+                  event_details,
+                  severity,
+                }),
+              }),
+          });
+        }
+      }
+    );
   };
 
   const startProctoringSession = async () => {

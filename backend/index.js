@@ -7,6 +7,20 @@ import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import { error } from "console";
+import {
+  strictRateLimiter,
+  proctoringRateLimiter,
+  standardRateLimiter,
+  speedLimiter,
+  batchProctoringEvent,
+  startBatchFlushing,
+  isDuplicateEvent,
+  blockSuspiciousUsers,
+  validateRequestSize,
+  validateCodeSubmission,
+  getSecurityStats,
+  startPeriodicCleanup,
+} from "./security-middleware.js";
 
 // const openai = new OpenAI();
 
@@ -659,47 +673,181 @@ app.get("/api/getprobleminfo/:qid", (req, res) => {
 });
 
 // Run test cases (like leetcode - shows all results without submitting)
-app.post("/api/runtestcases", async (req, res) => {
-  const { usercode, qid, language } = req.body;
+// WITH STRICT RATE LIMITING - 10 runs per minute
+app.post(
+  "/api/runtestcases",
+  strictRateLimiter, // Rate limit: 10 per minute
+  speedLimiter, // Gradually slow down rapid requests
+  validateRequestSize(1024 * 1024), // Max 1MB request
+  validateCodeSubmission, // Validate code for malicious patterns
+  async (req, res) => {
+    const { usercode, qid, language } = req.body;
 
-  try {
-    // Get test cases from database filtered by language
-    const testcases = await new Promise((resolve, reject) => {
-      db.query(
-        "SELECT * FROM testcases WHERE q_id = ? AND language = ?",
-        [qid, language],
-        (err, result) => {
-          if (err) return reject(err);
-          resolve(result);
-        }
-      );
-    });
+    try {
+      // Get test cases from database filtered by language
+      const testcases = await new Promise((resolve, reject) => {
+        db.query(
+          "SELECT * FROM testcases WHERE q_id = ? AND language = ?",
+          [qid, language],
+          (err, result) => {
+            if (err) return reject(err);
+            resolve(result);
+          }
+        );
+      });
 
-    if (!testcases || testcases.length === 0) {
-      return res.json({ error: "No test cases found for this problem" });
-    }
-
-    const baseURL = "https://emkc.org/api/v2/piston/execute";
-    const langConfig = languageConfig[language] || languageConfig.c;
-    const results = [];
-
-    // Run code against each test case
-    for (const testc of testcases) {
-      let fileName = `my_cool_code.${langConfig.fileExtension}`;
-      let fileContent = "";
-
-      if (language === "java") {
-        fileContent = usercode;
-        const match = usercode.match(/class\s+(\w+)/);
-        if (match) {
-          fileName = `${match[1]}.java`;
-        }
-      } else {
-        // Combine user code with runner code
-        fileContent = usercode + "\n" + (testc.runnercode || "");
+      if (!testcases || testcases.length === 0) {
+        return res.json({ error: "No test cases found for this problem" });
       }
 
-      try {
+      const baseURL = "https://emkc.org/api/v2/piston/execute";
+      const langConfig = languageConfig[language] || languageConfig.c;
+      const results = [];
+
+      // Run code against each test case
+      for (const testc of testcases) {
+        let fileName = `my_cool_code.${langConfig.fileExtension}`;
+        let fileContent = "";
+
+        if (language === "java") {
+          fileContent = usercode;
+          const match = usercode.match(/class\s+(\w+)/);
+          if (match) {
+            fileName = `${match[1]}.java`;
+          }
+        } else {
+          // Combine user code with runner code
+          fileContent = usercode + "\n" + (testc.runnercode || "");
+        }
+
+        try {
+          const response = await fetch(baseURL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              language: langConfig.language,
+              version: langConfig.version,
+              aliases: langConfig.aliases,
+              runtime: langConfig.runtime,
+              files: [
+                {
+                  name: fileName,
+                  content: fileContent,
+                },
+              ],
+              stdin: testc.ip || "",
+              args: [],
+              compile_timeout: 10000,
+              run_timeout: 3000,
+            }),
+          });
+
+          const data = await response.json();
+          const actualOutput = (data.run.stdout || "").trim();
+          const expectedOutput = (testc.op || "").trim();
+
+          results.push({
+            input: testc.ip,
+            expected: expectedOutput,
+            actual: actualOutput,
+            passed: actualOutput === expectedOutput && !data.run.stderr,
+            error: data.run.stderr || data.compile?.stderr || null,
+            // ✅ Performance metrics from Piston
+            performance: {
+              cpu_time: data.run?.cpu_time || 0,
+              wall_time: data.run?.wall_time || 0,
+              memory: data.run?.memory || 0,
+              memory_mb: ((data.run?.memory || 0) / 1024 / 1024).toFixed(2),
+            },
+          });
+
+          await new Promise((resolve) => setTimeout(resolve, 300));
+        } catch (err) {
+          results.push({
+            input: testc.ip,
+            expected: testc.op,
+            actual: "",
+            passed: false,
+            error: "Execution failed: " + err.message,
+            performance: {
+              cpu_time: 0,
+              wall_time: 0,
+              memory: 0,
+              memory_mb: "0.00",
+            },
+          });
+        }
+      }
+
+      res.json({ results });
+    } catch (error) {
+      console.error("Error running test cases:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+);
+
+// Check test cases and submit solution
+// WITH STRICT RATE LIMITING - 10 submissions per minute
+app.post(
+  "/api/checktc",
+  strictRateLimiter, // Rate limit: 10 per minute
+  speedLimiter, // Gradually slow down rapid requests
+  validateRequestSize(1024 * 1024), // Max 1MB request
+  validateCodeSubmission, // Validate code for malicious patterns
+  async (req, res) => {
+    // console.log(req.body.usercode);
+
+    let error = "";
+    let wrong_input = "";
+    let your_output = "";
+    let expected_output = "";
+    let usercode = req.body.usercode;
+    let language = req.body.language || "c";
+    let performanceMetrics = []; // ✅ Track performance across test cases
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        db.query(
+          "SELECT * FROM testcases WHERE q_id = ? AND language = ? ;",
+          [req.body.qid, language],
+          (err, result) => {
+            if (err) {
+              return reject(err);
+            }
+            resolve(result);
+          }
+        );
+      });
+
+      // console.log(result);
+
+      const baseURL = "https://emkc.org/api/v2/piston/execute"; // post
+
+      let status = true;
+
+      // Get language configuration
+      const langConfig = languageConfig[language] || languageConfig.c;
+
+      async function testQuestion(testc) {
+        // Prepare file content and name based on language
+        let fileName = `my_cool_code.${langConfig.fileExtension}`;
+        let fileContent = "";
+        if (language === "java") {
+          // For Java, usercode should be a full class, runnercode may be ignored or appended as a method if needed
+          fileContent = usercode; // runnercode is not appended for Java
+          // Optionally, parse for class name and set fileName accordingly
+          const match = usercode.match(/class\s+(\w+)/);
+          if (match) {
+            fileName = `${match[1]}.java`;
+          }
+        } else {
+          // For C, C++, Python: append runnercode if present with proper line breaks
+          fileContent = usercode + "\n" + (testc.runnercode || "");
+        }
+
         const response = await fetch(baseURL, {
           method: "POST",
           headers: {
@@ -724,193 +872,79 @@ app.post("/api/runtestcases", async (req, res) => {
         });
 
         const data = await response.json();
-        const actualOutput = (data.run.stdout || "").trim();
-        const expectedOutput = (testc.op || "").trim();
 
-        results.push({
-          input: testc.ip,
-          expected: expectedOutput,
-          actual: actualOutput,
-          passed: actualOutput === expectedOutput && !data.run.stderr,
-          error: data.run.stderr || data.compile?.stderr || null,
-          // ✅ Performance metrics from Piston
-          performance: {
-            cpu_time: data.run?.cpu_time || 0,
-            wall_time: data.run?.wall_time || 0,
-            memory: data.run?.memory || 0,
-            memory_mb: ((data.run?.memory || 0) / 1024 / 1024).toFixed(2),
-          },
+        if (data.run.stderr) {
+          error = data.run.stderr;
+          status = false;
+          return false;
+        } else if ((data.run.stdout || "").trim() != (testc.op || "").trim()) {
+          your_output = data.run.stdout;
+          return false;
+        }
+
+        // ✅ Collect performance metrics for successful runs
+        performanceMetrics.push({
+          cpu_time: data.run?.cpu_time || 0,
+          wall_time: data.run?.wall_time || 0,
+          memory: data.run?.memory || 0,
         });
 
+        return true;
+      }
+
+      // Iterate over each test case with a 300ms delay
+      for (const testc of result) {
+        const isSuccess = await testQuestion(testc);
+        if (!isSuccess) {
+          res.json({
+            remark: "wrong",
+            error: error,
+            input: testc.ip,
+            expected_output: testc.op,
+            your_output: your_output,
+          });
+          return;
+        }
         await new Promise((resolve) => setTimeout(resolve, 300));
-      } catch (err) {
-        results.push({
-          input: testc.ip,
-          expected: testc.op,
-          actual: "",
-          passed: false,
-          error: "Execution failed: " + err.message,
-          performance: {
-            cpu_time: 0,
-            wall_time: 0,
-            memory: 0,
-            memory_mb: "0.00",
-          },
-        });
       }
-    }
 
-    res.json({ results });
-  } catch (error) {
-    console.error("Error running test cases:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+      // ✅ Calculate average performance metrics
+      let avgMetrics = null;
+      if (performanceMetrics.length > 0) {
+        avgMetrics = {
+          avg_cpu_time: Math.round(
+            performanceMetrics.reduce((sum, m) => sum + m.cpu_time, 0) /
+              performanceMetrics.length
+          ),
+          avg_wall_time: Math.round(
+            performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0) /
+              performanceMetrics.length
+          ),
+          avg_memory: Math.round(
+            performanceMetrics.reduce((sum, m) => sum + m.memory, 0) /
+              performanceMetrics.length
+          ),
+          max_memory: Math.max(...performanceMetrics.map((m) => m.memory)),
+          total_time: performanceMetrics.reduce(
+            (sum, m) => sum + m.wall_time,
+            0
+          ),
+          memory_mb: (
+            Math.max(...performanceMetrics.map((m) => m.memory)) /
+            1024 /
+            1024
+          ).toFixed(2),
+          test_cases: performanceMetrics.length,
+        };
+      }
+
+      res.json({ remark: "correct", performance: avgMetrics });
+    } catch (error) {
+      console.error("Error during database query or execution:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+    }
   }
-});
-
-app.post("/api/checktc", async (req, res) => {
-  // console.log(req.body.usercode);
-
-  let error = "";
-  let wrong_input = "";
-  let your_output = "";
-  let expected_output = "";
-  let usercode = req.body.usercode;
-  let language = req.body.language || "c";
-  let performanceMetrics = []; // ✅ Track performance across test cases
-
-  try {
-    const result = await new Promise((resolve, reject) => {
-      db.query(
-        "SELECT * FROM testcases WHERE q_id = ? AND language = ? ;",
-        [req.body.qid, language],
-        (err, result) => {
-          if (err) {
-            return reject(err);
-          }
-          resolve(result);
-        }
-      );
-    });
-
-    // console.log(result);
-
-    const baseURL = "https://emkc.org/api/v2/piston/execute"; // post
-
-    let status = true;
-
-    // Get language configuration
-    const langConfig = languageConfig[language] || languageConfig.c;
-
-    async function testQuestion(testc) {
-      // Prepare file content and name based on language
-      let fileName = `my_cool_code.${langConfig.fileExtension}`;
-      let fileContent = "";
-      if (language === "java") {
-        // For Java, usercode should be a full class, runnercode may be ignored or appended as a method if needed
-        fileContent = usercode; // runnercode is not appended for Java
-        // Optionally, parse for class name and set fileName accordingly
-        const match = usercode.match(/class\s+(\w+)/);
-        if (match) {
-          fileName = `${match[1]}.java`;
-        }
-      } else {
-        // For C, C++, Python: append runnercode if present with proper line breaks
-        fileContent = usercode + "\n" + (testc.runnercode || "");
-      }
-
-      const response = await fetch(baseURL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          language: langConfig.language,
-          version: langConfig.version,
-          aliases: langConfig.aliases,
-          runtime: langConfig.runtime,
-          files: [
-            {
-              name: fileName,
-              content: fileContent,
-            },
-          ],
-          stdin: testc.ip || "",
-          args: [],
-          compile_timeout: 10000,
-          run_timeout: 3000,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.run.stderr) {
-        error = data.run.stderr;
-        status = false;
-        return false;
-      } else if ((data.run.stdout || "").trim() != (testc.op || "").trim()) {
-        your_output = data.run.stdout;
-        return false;
-      }
-
-      // ✅ Collect performance metrics for successful runs
-      performanceMetrics.push({
-        cpu_time: data.run?.cpu_time || 0,
-        wall_time: data.run?.wall_time || 0,
-        memory: data.run?.memory || 0,
-      });
-
-      return true;
-    }
-
-    // Iterate over each test case with a 300ms delay
-    for (const testc of result) {
-      const isSuccess = await testQuestion(testc);
-      if (!isSuccess) {
-        res.json({
-          remark: "wrong",
-          error: error,
-          input: testc.ip,
-          expected_output: testc.op,
-          your_output: your_output,
-        });
-        return;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
-
-    // ✅ Calculate average performance metrics
-    let avgMetrics = null;
-    if (performanceMetrics.length > 0) {
-      avgMetrics = {
-        avg_cpu_time: Math.round(
-          performanceMetrics.reduce((sum, m) => sum + m.cpu_time, 0) /
-            performanceMetrics.length
-        ),
-        avg_wall_time: Math.round(
-          performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0) /
-            performanceMetrics.length
-        ),
-        avg_memory: Math.round(
-          performanceMetrics.reduce((sum, m) => sum + m.memory, 0) /
-            performanceMetrics.length
-        ),
-        max_memory: Math.max(...performanceMetrics.map((m) => m.memory)),
-        total_time: performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0),
-        memory_mb: (
-          Math.max(...performanceMetrics.map((m) => m.memory)) /
-          1024 /
-          1024
-        ).toFixed(2),
-        test_cases: performanceMetrics.length,
-      };
-    }
-
-    res.json({ remark: "correct", performance: avgMetrics });
-  } catch (error) {
-    console.error("Error during database query or execution:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
+);
 
 app.post("/api/tcvalid", async (req, res) => {
   try {
@@ -1446,33 +1480,30 @@ function isTeacher(req, res, next) {
   }
 }
 
-// Log proctoring event
-app.post("/api/proctoring/log-event", authenticateUser, async (req, res) => {
-  try {
-    const { q_id, event_type, event_details, severity } = req.body;
-    const user_id = req.user.userid;
+// Log proctoring event - WITH RATE LIMITING AND BATCHING
+app.post(
+  "/api/proctoring/log-event",
+  authenticateUser,
+  proctoringRateLimiter, // Rate limit: 30 events per minute
+  blockSuspiciousUsers, // Block users with too many violations
+  async (req, res) => {
+    try {
+      const { q_id, event_type, event_details, severity } = req.body;
+      const user_id = req.user.userid;
 
-    const query = `
-      INSERT INTO proctoring_events (user_id, q_id, event_type, event_details, severity) 
-      VALUES (?, ?, ?, ?, ?)
-    `;
+      // Check for duplicate events (within 1 second)
+      if (isDuplicateEvent(user_id, event_type, event_details)) {
+        // Silent success - don't log duplicate
+        return res.json({ success: true, deduplicated: true });
+      }
 
-    db.query(
-      query,
-      [
-        user_id,
-        q_id || null,
-        event_type,
-        event_details || "",
-        severity || "low",
-      ],
-      (err, result) => {
-        if (err) {
-          console.error("Error logging proctoring event:", err);
-          return res.status(500).json({ error: "Failed to log event" });
-        }
+      // Use event batching instead of immediate insert
+      // This reduces database writes by 10-20x
+      batchProctoringEvent(user_id, q_id, event_type, event_details, severity);
 
-        // Emit real-time event to teachers via WebSocket
+      // Emit real-time event to teachers via WebSocket (but throttled)
+      // Only emit high and medium severity events to reduce WebSocket spam
+      if (severity === "high" || severity === "medium") {
         io.emit("proctoring_event", {
           user_id,
           username: req.user.username,
@@ -1482,82 +1513,87 @@ app.post("/api/proctoring/log-event", authenticateUser, async (req, res) => {
           severity,
           timestamp: new Date(),
         });
-
-        res.json({ success: true, event_id: result.insertId });
       }
-    );
-  } catch (error) {
-    console.error("Error in log-event:", error);
-    res.status(500).json({ error: "Internal server error" });
+
+      res.json({ success: true, batched: true });
+    } catch (error) {
+      console.error("Error in log-event:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-});
+);
 
-// Start/update active session
-app.post("/api/proctoring/session", authenticateUser, async (req, res) => {
-  try {
-    const { q_id, problem_name, language } = req.body;
-    const user_id = req.user.userid;
-    const username = req.user.username;
+// Start/update active session - WITH RATE LIMITING
+app.post(
+  "/api/proctoring/session",
+  authenticateUser,
+  standardRateLimiter, // 100 requests per minute
+  async (req, res) => {
+    try {
+      const { q_id, problem_name, language } = req.body;
+      const user_id = req.user.userid;
+      const username = req.user.username;
 
-    // Check if session already exists
-    db.query(
-      "SELECT * FROM active_sessions WHERE user_id = ? AND q_id = ? AND is_active = TRUE",
-      [user_id, q_id],
-      (err, existing) => {
-        if (err) {
-          console.error("Error checking session:", err);
-          return res.status(500).json({ error: "Failed to check session" });
-        }
+      // Check if session already exists
+      db.query(
+        "SELECT * FROM active_sessions WHERE user_id = ? AND q_id = ? AND is_active = TRUE",
+        [user_id, q_id],
+        (err, existing) => {
+          if (err) {
+            console.error("Error checking session:", err);
+            return res.status(500).json({ error: "Failed to check session" });
+          }
 
-        if (existing.length > 0) {
-          // Update existing session
-          db.query(
-            "UPDATE active_sessions SET last_activity = CURRENT_TIMESTAMP, language = ? WHERE session_id = ?",
-            [language, existing[0].session_id],
-            (err, result) => {
-              if (err) {
-                console.error("Error updating session:", err);
-                return res
-                  .status(500)
-                  .json({ error: "Failed to update session" });
+          if (existing.length > 0) {
+            // Update existing session
+            db.query(
+              "UPDATE active_sessions SET last_activity = CURRENT_TIMESTAMP, language = ? WHERE session_id = ?",
+              [language, existing[0].session_id],
+              (err, result) => {
+                if (err) {
+                  console.error("Error updating session:", err);
+                  return res
+                    .status(500)
+                    .json({ error: "Failed to update session" });
+                }
+                res.json({ success: true, session_id: existing[0].session_id });
               }
-              res.json({ success: true, session_id: existing[0].session_id });
-            }
-          );
-        } else {
-          // Create new session
-          db.query(
-            `INSERT INTO active_sessions (user_id, username, q_id, problem_name, language) 
+            );
+          } else {
+            // Create new session
+            db.query(
+              `INSERT INTO active_sessions (user_id, username, q_id, problem_name, language) 
              VALUES (?, ?, ?, ?, ?)`,
-            [user_id, username, q_id, problem_name, language],
-            (err, result) => {
-              if (err) {
-                console.error("Error creating session:", err);
-                return res
-                  .status(500)
-                  .json({ error: "Failed to create session" });
+              [user_id, username, q_id, problem_name, language],
+              (err, result) => {
+                if (err) {
+                  console.error("Error creating session:", err);
+                  return res
+                    .status(500)
+                    .json({ error: "Failed to create session" });
+                }
+
+                // Emit to teachers
+                io.emit("user_session_started", {
+                  user_id,
+                  username,
+                  q_id,
+                  problem_name,
+                  language,
+                });
+
+                res.json({ success: true, session_id: result.insertId });
               }
-
-              // Emit to teachers
-              io.emit("user_session_started", {
-                user_id,
-                username,
-                q_id,
-                problem_name,
-                language,
-              });
-
-              res.json({ success: true, session_id: result.insertId });
-            }
-          );
+            );
+          }
         }
-      }
-    );
-  } catch (error) {
-    console.error("Error in session endpoint:", error);
-    res.status(500).json({ error: "Internal server error" });
+      );
+    } catch (error) {
+      console.error("Error in session endpoint:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
-});
+);
 
 // End session
 app.post("/api/proctoring/end-session", authenticateUser, async (req, res) => {
@@ -1620,10 +1656,11 @@ app.post(
   }
 );
 
-// Update session activity counter (tab switches, copy/paste)
+// Update session activity counter (tab switches, copy/paste) - WITH RATE LIMITING
 app.post(
   "/api/proctoring/update-counter",
   authenticateUser,
+  proctoringRateLimiter, // 30 requests per minute
   async (req, res) => {
     try {
       const { q_id, counter_type } = req.body;
@@ -2131,6 +2168,52 @@ setInterval(cleanupStaleSessions, 2 * 60 * 1000);
 // Run cleanup on startup
 cleanupStaleSessions();
 
+// ============================================================
+// SECURITY SYSTEM INITIALIZATION
+// ============================================================
+
+// Global function for flushing batched proctoring events
+global.flushProctoringBatch = (batch) => {
+  if (!batch || batch.length === 0) return;
+
+  console.log(`📊 Flushing ${batch.length} proctoring events to database`);
+
+  // Prepare bulk insert query
+  const values = batch.map((event) => [
+    event.userId,
+    event.qId || null,
+    event.eventType,
+    event.eventDetails || "",
+    event.severity || "low",
+    event.timestamp,
+  ]);
+
+  const query = `
+    INSERT INTO proctoring_events (user_id, q_id, event_type, event_details, severity, timestamp) 
+    VALUES ?
+  `;
+
+  db.query(query, [values], (err, result) => {
+    if (err) {
+      console.error("❌ Error flushing proctoring batch:", err);
+    } else {
+      console.log(`✅ Flushed ${result.affectedRows} proctoring events`);
+    }
+  });
+};
+
+// Start security systems
+console.log("🔒 Initializing security systems...");
+startBatchFlushing();
+startPeriodicCleanup();
+console.log("✅ Security systems initialized");
+
+// API endpoint to get security stats (for monitoring)
+app.get("/api/security/stats", authenticateUser, isTeacher, (req, res) => {
+  res.json(getSecurityStats());
+});
+
 httpServer.listen(port, () => {
   console.log("http server up at ", port);
+  console.log("🔒 Security middleware active");
 });

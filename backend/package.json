@@ -7,7 +7,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "cleanup": "node cleanup-old-events.js",
+    "cleanup:dry-run": "node cleanup-old-events.js --dry-run"
   },
   "author": "Ayan, Atharva, Nishant,  Varun",
   "license": "ISC",
@@ -15,6 +17,8 @@
     "@google/generative-ai": "^0.16.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.1.0",
+    "express-slow-down": "^3.0.0",
     "json-body-parser": "^1.0.2",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.11.0",
