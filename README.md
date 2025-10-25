@@ -208,7 +208,7 @@ The system follows a client-server architecture with real-time capabilities:
 └────────────────────────┬────────────────────────────────────┘
                          │ HTTPS/WSS
 ┌────────────────────────▼────────────────────────────────────┐
-│               Server (Node.js + Express)                     │
+│               Server (Node.js + Express)                    │
 │  ┌──────────────┬──────────────┬────────────────────────┐   │
 │  │   REST API   │   Socket.IO  │   JWT Auth             │   │
 │  │   Endpoints  │   Server     │   Middleware           │   │
