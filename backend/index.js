@@ -599,15 +599,37 @@ app.get("/api/getProblemList/:type", (req, res) => {
   const type = req.params.type;
   // console.log(type);
 
-  let q = "select q_id, qname, qtype from questions where qtype = ?;";
+  let q =
+    "select q_id, qname, qtype, timer, selected_languages from questions where qtype = ?;";
 
   if (type == "all") {
-    q = "select q_id, qname, qtype from questions;";
+    q = "select q_id, qname, qtype, timer, selected_languages from questions;";
   }
 
   db.query(q, [type], (err, resp) => {
     if (err) {
       throw err;
+    }
+
+    // Parse selected_languages JSON field for each problem
+    if (resp && resp.length > 0) {
+      resp.forEach((problem) => {
+        try {
+          if (problem.selected_languages) {
+            problem.selected_languages = JSON.parse(problem.selected_languages);
+          } else {
+            problem.selected_languages = ["c"]; // Default to C if no languages specified
+          }
+        } catch (parseError) {
+          console.log(
+            "Error parsing selected_languages for problem",
+            problem.q_id,
+            ":",
+            parseError
+          );
+          problem.selected_languages = ["c"]; // Default fallback
+        }
+      });
     }
 
     // console.log(resp);

@@ -313,12 +313,13 @@
 /* Problem Meta */
 .problem-meta {
   display: flex;
-  flex-direction: row;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .problem-type,
-.problem-difficulty {
+.problem-language,
+.problem-timer {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -326,7 +327,8 @@
 }
 
 .type-label,
-.difficulty-label {
+.language-label,
+.timer-label {
   color: rgba(255, 255, 255, 0.7);
   font-weight: 600;
 }
@@ -336,45 +338,32 @@
   font-weight: 600;
 }
 
-.difficulty-value {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.difficulty-value.easy {
-  background: rgba(76, 175, 80, 0.2);
+.language-value {
   color: #4caf50;
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  font-weight: 600;
+  background: rgba(76, 175, 80, 0.1);
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(76, 175, 80, 0.2);
 }
 
-.difficulty-value.medium {
-  background: rgba(255, 193, 7, 0.2);
-  color: #ffc107;
-  border: 1px solid rgba(255, 193, 7, 0.3);
-}
-
-.difficulty-value.hard {
-  background: rgba(244, 67, 54, 0.2);
-  color: #f44336;
-  border: 1px solid rgba(244, 67, 54, 0.3);
+.timer-value {
+  color: #ff9800;
+  font-weight: 600;
+  background: rgba(255, 152, 0, 0.1);
+  padding: 2px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 152, 0, 0.2);
 }
 
 /* Problem Footer */
 .problem-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-top: auto;
   padding-top: 15px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.problem-id {
-  font-size: 0.85rem;
-  color: rgba(255, 255, 255, 0.6);
-  font-weight: 500;
 }
 
 .problem-arrow {

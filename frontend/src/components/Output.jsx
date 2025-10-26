@@ -371,7 +371,9 @@ function Output(props) {
                       ? "✓ Passed"
                       : status === "wrong"
                       ? "✗ Failed"
-                      : "⏳ Processing"}
+                      : isRunning
+                      ? "⏳ Processing"
+                      : "Ready to test"}
                   </div>
                 </div>
 

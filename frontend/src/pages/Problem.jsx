@@ -89,17 +89,20 @@ function Problem() {
     }
   }, [timeLeft, qid, timer]);
 
-  // Clean up localStorage when problem is solved
+  // Clean up localStorage and stop timer when problem is solved
   useEffect(() => {
     if (solved && qid) {
+      // Stop timer when problem is solved
+      clearInterval(timerInterval.current);
+
+      // Clear timer from localStorage
+      const timerKey = `problem_${qid}_timer`;
+      localStorage.removeItem(timerKey);
       // Clear all saved code for all languages for this problem
       Object.keys(availableLanguages).forEach((lang) => {
         const codeKey = `problem_${qid}_${lang}_code`;
         localStorage.removeItem(codeKey);
       });
-      // Clear timer data
-      const timerKey = `problem_${qid}_timer`;
-      localStorage.removeItem(timerKey);
       // Clear AI help usage
       const aiHelpKey = `problem_${qid}_ai_help_used`;
       localStorage.removeItem(aiHelpKey);
@@ -636,7 +639,7 @@ function Problem() {
 
   // Timer countdown effect
   useEffect(() => {
-    if (timer && timeLeft !== null && timeLeft > 0) {
+    if (timer && timeLeft !== null && timeLeft > 0 && !solved) {
       timerInterval.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev === 1) {
@@ -647,9 +650,12 @@ function Problem() {
           return prev - 1;
         });
       }, 1000);
+    } else if (solved) {
+      // Stop timer when problem is solved
+      clearInterval(timerInterval.current);
     }
     return () => clearInterval(timerInterval.current);
-  }, [timer, timeLeft]);
+  }, [timer, timeLeft, solved]);
 
   // Auto-submit function - simply triggers the submit button
   function handleAutoSubmit() {

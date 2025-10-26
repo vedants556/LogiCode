@@ -165,20 +165,28 @@ function ProblemList() {
                         <span className="type-label">Category:</span>
                         <span className="type-value">{problem.qtype}</span>
                       </div>
-                      <div className="problem-difficulty">
-                        <span className="difficulty-label">Difficulty:</span>
-                        <span
-                          className={`difficulty-value ${
-                            problem.difficulty || "medium"
-                          }`}
-                        >
-                          {problem.difficulty || "Medium"}
+                      <div className="problem-language">
+                        <span className="language-label">Language:</span>
+                        <span className="language-value">
+                          {problem.selected_languages &&
+                          problem.selected_languages.length > 0
+                            ? problem.selected_languages
+                                .join(", ")
+                                .toUpperCase()
+                            : "C"}
+                        </span>
+                      </div>
+                      <div className="problem-timer">
+                        <span className="timer-label">Time Limit:</span>
+                        <span className="timer-value">
+                          {problem.timer && problem.timer > 0
+                            ? `${problem.timer} min`
+                            : "No limit"}
                         </span>
                       </div>
                     </div>
 
                     <div className="problem-footer">
-                      <div className="problem-id">ID: {problem.q_id}</div>
                       <div className="problem-arrow">→</div>
                     </div>
                   </Link>
