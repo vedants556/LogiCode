@@ -1240,11 +1240,12 @@ app.post("/api/getSolvedProblems", authenticateUser, async (req, res) => {
   // console.log(userid);
 
   db.query(
-    "select * from solved where user_id = ?",
+    "select DISTINCT q_id from solved where user_id = ?",
     [userid],
     (err, result) => {
       if (err) {
         res.json({ error: err });
+        return;
       }
 
       // console.log(result);
@@ -1255,9 +1256,12 @@ app.post("/api/getSolvedProblems", authenticateUser, async (req, res) => {
         finalQids.push(el.q_id);
       });
 
+      // Ensure no duplicates even if database has them
+      const uniqueQids = [...new Set(finalQids)];
+
       // console.log(finalQids);
 
-      res.json({ quids: finalQids });
+      res.json({ quids: uniqueQids });
     }
   );
 });
@@ -2040,6 +2044,112 @@ app.get(
       }
       res.json(result);
     });
+  }
+);
+
+// Teacher Dashboard: Get all problems with submissions for plagiarism checking
+app.get(
+  "/api/teacher/problems-with-submissions",
+  authenticateUser,
+  isTeacher,
+  (req, res) => {
+    const query = `
+      SELECT DISTINCT 
+        q.q_id, 
+        q.qname, 
+        q.qtype,
+        COUNT(DISTINCT cs.user_id) as submission_count,
+        COUNT(cs.submission_id) as total_submissions
+      FROM questions q
+      INNER JOIN code_submissions cs ON q.q_id = cs.q_id
+      GROUP BY q.q_id, q.qname, q.qtype
+      ORDER BY total_submissions DESC
+    `;
+
+    db.query(query, [], (err, result) => {
+      if (err) {
+        console.error("Error fetching problems with submissions:", err);
+        return res.status(500).json({ error: "Failed to fetch problems" });
+      }
+      res.json(result);
+    });
+  }
+);
+
+// Teacher Dashboard: Get all plagiarism results for all problems automatically
+app.get(
+  "/api/teacher/plagiarism-report",
+  authenticateUser,
+  isTeacher,
+  async (req, res) => {
+    try {
+      // Get all problems that have submissions
+      const problemsQuery = `
+        SELECT DISTINCT q_id FROM code_submissions
+      `;
+
+      const problems = await new Promise((resolve, reject) => {
+        db.query(problemsQuery, [], (err, result) => {
+          if (err) return reject(err);
+          resolve(result);
+        });
+      });
+
+      const allResults = [];
+
+      // Check each problem for plagiarism
+      for (const problem of problems) {
+        const q_id = problem.q_id;
+
+        const submissions = await new Promise((resolve, reject) => {
+          db.query(
+            "SELECT cs.*, u.username, q.qname FROM code_submissions cs JOIN users u ON cs.user_id = u.userid JOIN questions q ON cs.q_id = q.q_id WHERE cs.q_id = ? ORDER BY cs.submitted_at DESC",
+            [q_id],
+            (err, result) => {
+              if (err) return reject(err);
+              resolve(result);
+            }
+          );
+        });
+
+        // Find suspicious pairs
+        const suspiciousPairs = [];
+        for (let i = 0; i < submissions.length; i++) {
+          for (let j = i + 1; j < submissions.length; j++) {
+            const similarity = calculateSimilarity(
+              submissions[i].code,
+              submissions[j].code
+            );
+
+            if (similarity > 0.85) {
+              suspiciousPairs.push({
+                user1: submissions[i].username,
+                user1_id: submissions[i].user_id,
+                user2: submissions[j].username,
+                user2_id: submissions[j].user_id,
+                similarity: similarity,
+                submission1_id: submissions[i].submission_id,
+                submission2_id: submissions[j].submission_id,
+              });
+            }
+          }
+        }
+
+        if (suspiciousPairs.length > 0) {
+          allResults.push({
+            q_id: q_id,
+            qname: submissions[0]?.qname || `Problem ${q_id}`,
+            total_submissions: submissions.length,
+            suspicious_pairs: suspiciousPairs,
+          });
+        }
+      }
+
+      res.json(allResults);
+    } catch (error) {
+      console.error("Error generating plagiarism report:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
   }
 );
 

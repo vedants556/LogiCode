@@ -17,6 +17,8 @@ function TeacherDashboard() {
   const [selectedProblemForSimilarity, setSelectedProblemForSimilarity] =
     useState("");
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [allPlagiarismResults, setAllPlagiarismResults] = useState([]);
+  const [loadingPlagiarism, setLoadingPlagiarism] = useState(false);
 
   // Event filtering states
   const [eventFilter, setEventFilter] = useState({
@@ -271,6 +273,31 @@ function TeacherDashboard() {
       console.error("Error checking similarity:", error);
     }
   };
+
+  const fetchAllPlagiarismReport = async () => {
+    setLoadingPlagiarism(true);
+    try {
+      const response = await fetch("/api/teacher/plagiarism-report", {
+        headers: {
+          authorization: "Bearer " + localStorage.getItem("auth"),
+        },
+      });
+      const data = await response.json();
+      setAllPlagiarismResults(data);
+    } catch (error) {
+      console.error("Error fetching plagiarism report:", error);
+    } finally {
+      setLoadingPlagiarism(false);
+    }
+  };
+
+  // Auto-fetch plagiarism report when similarity tab is selected
+  useEffect(() => {
+    if (selectedTab === "similarity") {
+      fetchAllPlagiarismReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTab]);
 
   const getSeverityColor = (severity) => {
     switch (severity) {
@@ -675,53 +702,150 @@ function TeacherDashboard() {
 
   const renderSimilarity = () => (
     <div className="similarity-section">
-      <h2>🔍 Code Similarity Detection</h2>
-      <div className="similarity-controls">
-        <input
-          type="number"
-          placeholder="Enter Problem ID"
-          value={selectedProblemForSimilarity}
-          onChange={(e) => setSelectedProblemForSimilarity(e.target.value)}
-          className="similarity-input"
-        />
-        <button onClick={checkCodeSimilarity} className="check-btn">
-          Check Similarity
-        </button>
-      </div>
+      <h2>🔍 Plagiarism Detection - All Submissions</h2>
 
-      {similarityResults && (
-        <div className="similarity-results">
-          <h3>Results</h3>
-          <p>Total Submissions: {similarityResults.total_submissions}</p>
-          <p>
-            Suspicious Pairs Found: {similarityResults.suspicious_pairs.length}
-          </p>
+      {loadingPlagiarism ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Analyzing all submissions for plagiarism...</p>
+        </div>
+      ) : allPlagiarismResults.length > 0 ? (
+        <>
+          <div className="plagiarism-summary">
+            <p className="summary-text">
+              📊 Found{" "}
+              {allPlagiarismResults.reduce(
+                (sum, problem) => sum + problem.suspicious_pairs.length,
+                0
+              )}{" "}
+              suspicious pairs across {allPlagiarismResults.length} problem(s)
+            </p>
+            <button
+              onClick={fetchAllPlagiarismReport}
+              className="check-btn"
+              style={{ marginLeft: "10px" }}
+            >
+              🔄 Refresh
+            </button>
+          </div>
 
-          {similarityResults.suspicious_pairs.length > 0 && (
-            <div className="suspicious-pairs">
-              {similarityResults.suspicious_pairs.map((pair, index) => (
-                <div key={index} className="pair-card">
-                  <div className="pair-header">
-                    <h4>Suspicious Pair #{index + 1}</h4>
-                    <span className="similarity-score">
-                      {(pair.similarity * 100).toFixed(1)}% Similar
-                    </span>
-                  </div>
-                  <div className="pair-users">
-                    <span>
-                      👤 {pair.user1} (ID: {pair.user1_id})
-                    </span>
-                    <span>↔️</span>
-                    <span>
-                      👤 {pair.user2} (ID: {pair.user2_id})
+          <div className="all-plagiarism-results">
+            {allPlagiarismResults.map((problem, problemIndex) => (
+              <div key={problem.q_id} className="problem-plagiarism-card">
+                <div className="problem-header">
+                  <h3>📝 {problem.qname || `Problem ${problem.q_id}`}</h3>
+                  <div className="problem-stats">
+                    <span>ID: {problem.q_id}</span>
+                    <span>•</span>
+                    <span>{problem.total_submissions} submissions</span>
+                    <span>•</span>
+                    <span className="suspicious-count">
+                      {problem.suspicious_pairs.length} suspicious
                     </span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+
+                <div className="suspicious-pairs">
+                  {problem.suspicious_pairs.map((pair, pairIndex) => (
+                    <div key={pairIndex} className="pair-card">
+                      <div className="pair-header">
+                        <h4>Suspicious Pair #{pairIndex + 1}</h4>
+                        <span
+                          className="similarity-score"
+                          style={{
+                            backgroundColor:
+                              pair.similarity > 0.95
+                                ? "#f44336"
+                                : pair.similarity > 0.9
+                                ? "#ff9800"
+                                : "#4caf50",
+                          }}
+                        >
+                          {(pair.similarity * 100).toFixed(1)}% Similar
+                        </span>
+                      </div>
+                      <div className="pair-users">
+                        <span>
+                          👤 {pair.user1} (ID: {pair.user1_id})
+                        </span>
+                        <span>↔️</span>
+                        <span>
+                          👤 {pair.user2} (ID: {pair.user2_id})
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <div className="no-results">
+          <p>✅ No plagiarism detected in any submissions</p>
+          <button onClick={fetchAllPlagiarismReport} className="check-btn">
+            🔄 Check Again
+          </button>
         </div>
       )}
+
+      <div
+        className="manual-check-section"
+        style={{
+          marginTop: "30px",
+          paddingTop: "20px",
+          borderTop: "1px solid #ddd",
+        }}
+      >
+        <h3>Manual Check by Problem ID</h3>
+        <div className="similarity-controls">
+          <input
+            type="number"
+            placeholder="Enter Problem ID"
+            value={selectedProblemForSimilarity}
+            onChange={(e) => setSelectedProblemForSimilarity(e.target.value)}
+            className="similarity-input"
+          />
+          <button onClick={checkCodeSimilarity} className="check-btn">
+            Check Specific Problem
+          </button>
+        </div>
+
+        {similarityResults && (
+          <div className="similarity-results" style={{ marginTop: "15px" }}>
+            <h4>Manual Check Results</h4>
+            <p>Total Submissions: {similarityResults.total_submissions}</p>
+            <p>
+              Suspicious Pairs Found:{" "}
+              {similarityResults.suspicious_pairs.length}
+            </p>
+
+            {similarityResults.suspicious_pairs.length > 0 && (
+              <div className="suspicious-pairs">
+                {similarityResults.suspicious_pairs.map((pair, index) => (
+                  <div key={index} className="pair-card">
+                    <div className="pair-header">
+                      <h4>Suspicious Pair #{index + 1}</h4>
+                      <span className="similarity-score">
+                        {(pair.similarity * 100).toFixed(1)}% Similar
+                      </span>
+                    </div>
+                    <div className="pair-users">
+                      <span>
+                        👤 {pair.user1} (ID: {pair.user1_id})
+                      </span>
+                      <span>↔️</span>
+                      <span>
+                        👤 {pair.user2} (ID: {pair.user2_id})
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 

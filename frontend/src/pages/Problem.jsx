@@ -1,4 +1,10 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import Editor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import Output from "../components/Output";
@@ -69,6 +75,105 @@ function Problem() {
 
   // const [q_id, setQid] = useState(-1)
 
+  // Proctoring event throttler - prevents spam
+  const proctoringThrottler = useMemo(() => new ProctoringEventThrottler(), []);
+
+  // Proctoring helper functions - WITH ENHANCED ERROR HANDLING
+  const showWarning = useCallback((message) => {
+    setViolationWarning(message);
+    setShowViolationWarning(true);
+    setTimeout(() => {
+      setShowViolationWarning(false);
+    }, 4000);
+  }, []);
+
+  const updateSessionCounter = useCallback(
+    async (counter_type) => {
+      try {
+        await fetch("/api/proctoring/update-counter", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            authorization: "Bearer " + localStorage.getItem("auth"),
+          },
+          body: JSON.stringify({
+            q_id: qid,
+            counter_type,
+          }),
+        });
+      } catch (error) {
+        console.error("Error updating session counter:", error);
+      }
+    },
+    [qid]
+  );
+
+  const logProctoringEvent = useCallback(
+    async (event_type, event_details, severity = "low") => {
+      // Check if event is allowed (rate limiting + deduplication)
+      const check = proctoringThrottler.canLogEvent(event_type, event_details);
+
+      if (!check.allowed) {
+        // Event blocked by throttler - don't spam console
+        if (check.reason === "rate_limit") {
+          console.warn(`⚠️ Proctoring event rate limit: ${check.message}`);
+        }
+        return; // Silently ignore blocked events
+      }
+
+      // Use safe proctoring call (doesn't disrupt user experience on failure)
+      await safeProctoringCall(
+        async () => {
+          const response = await fetchWithErrorHandling(
+            "/api/proctoring/log-event",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                authorization: "Bearer " + localStorage.getItem("auth"),
+              },
+              body: JSON.stringify({
+                q_id: qid,
+                event_type,
+                event_details,
+                severity,
+              }),
+            },
+            {
+              maxRetries: 1, // Only retry once for proctoring events
+              retryDelay: 500,
+              timeout: 5000, // 5 second timeout
+            }
+          );
+
+          return await response.json();
+        },
+        (error) => {
+          // Fallback: Queue for later if it's a network error
+          if (error.type === ErrorType.NETWORK) {
+            failedRequestQueue.add({
+              fn: () =>
+                fetch("/api/proctoring/log-event", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    authorization: "Bearer " + localStorage.getItem("auth"),
+                  },
+                  body: JSON.stringify({
+                    q_id: qid,
+                    event_type,
+                    event_details,
+                    severity,
+                  }),
+                }),
+            });
+          }
+        }
+      );
+    },
+    [qid, proctoringThrottler]
+  );
+
   // Persist code to localStorage when it changes
   useEffect(() => {
     if (value && qid && selectedLanguage) {
@@ -131,6 +236,9 @@ function Problem() {
       if (document.hidden && qid && problemData.length > 0) {
         // Tab switched away
         setTabSwitches((prev) => prev + 1);
+        showWarning(
+          "⚠️ Warning: You switched away from the problem page. This action has been logged."
+        );
         logProctoringEvent(
           "tab_switch",
           "User switched away from the problem page",
@@ -157,7 +265,14 @@ function Problem() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
     };
-  }, [qid, problemData, proctoringEnabled]);
+  }, [
+    qid,
+    problemData,
+    proctoringEnabled,
+    showWarning,
+    logProctoringEvent,
+    updateSessionCounter,
+  ]);
 
   // Proctoring: Disable right-click and dev tools
   useEffect(() => {
@@ -221,6 +336,18 @@ function Problem() {
 
       setCopyPasteCount((prev) => prev + 1);
       const pastedText = e.clipboardData?.getData("text") || "";
+
+      // Show warning based on paste size
+      if (pastedText.length > 100) {
+        showWarning(
+          "⚠️ Warning: Large amount of code was pasted. External code usage is being monitored."
+        );
+      } else if (pastedText.length > 50) {
+        showWarning(
+          "⚠️ Warning: Code pasted from external source. This action has been logged."
+        );
+      }
+
       logProctoringEvent(
         "paste",
         `User pasted ${pastedText.length} characters in editor`,
@@ -282,7 +409,12 @@ function Problem() {
       document.removeEventListener("copy", handleCopy);
       document.removeEventListener("selectstart", handleSelectStart);
     };
-  }, [proctoringEnabled]);
+  }, [
+    proctoringEnabled,
+    showWarning,
+    logProctoringEvent,
+    updateSessionCounter,
+  ]);
 
   // Proctoring: Start session when problem loads
   useEffect(() => {
@@ -302,77 +434,6 @@ function Problem() {
       }
     };
   }, [problemData, qid, proctoringEnabled]);
-
-  // Proctoring event throttler - prevents spam
-  const proctoringThrottler = useMemo(() => new ProctoringEventThrottler(), []);
-
-  // Proctoring helper functions - WITH ENHANCED ERROR HANDLING
-  const logProctoringEvent = async (
-    event_type,
-    event_details,
-    severity = "low"
-  ) => {
-    // Check if event is allowed (rate limiting + deduplication)
-    const check = proctoringThrottler.canLogEvent(event_type, event_details);
-
-    if (!check.allowed) {
-      // Event blocked by throttler - don't spam console
-      if (check.reason === "rate_limit") {
-        console.warn(`⚠️ Proctoring event rate limit: ${check.message}`);
-      }
-      return; // Silently ignore blocked events
-    }
-
-    // Use safe proctoring call (doesn't disrupt user experience on failure)
-    await safeProctoringCall(
-      async () => {
-        const response = await fetchWithErrorHandling(
-          "/api/proctoring/log-event",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              authorization: "Bearer " + localStorage.getItem("auth"),
-            },
-            body: JSON.stringify({
-              q_id: qid,
-              event_type,
-              event_details,
-              severity,
-            }),
-          },
-          {
-            maxRetries: 1, // Only retry once for proctoring events
-            retryDelay: 500,
-            timeout: 5000, // 5 second timeout
-          }
-        );
-
-        return await response.json();
-      },
-      (error) => {
-        // Fallback: Queue for later if it's a network error
-        if (error.type === ErrorType.NETWORK) {
-          failedRequestQueue.add({
-            fn: () =>
-              fetch("/api/proctoring/log-event", {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  authorization: "Bearer " + localStorage.getItem("auth"),
-                },
-                body: JSON.stringify({
-                  q_id: qid,
-                  event_type,
-                  event_details,
-                  severity,
-                }),
-              }),
-          });
-        }
-      }
-    );
-  };
 
   const startProctoringSession = async () => {
     try {
@@ -410,32 +471,6 @@ function Problem() {
     } catch (error) {
       console.error("Error ending proctoring session:", error);
     }
-  };
-
-  const updateSessionCounter = async (counter_type) => {
-    try {
-      await fetch("/api/proctoring/update-counter", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          authorization: "Bearer " + localStorage.getItem("auth"),
-        },
-        body: JSON.stringify({
-          q_id: qid,
-          counter_type,
-        }),
-      });
-    } catch (error) {
-      console.error("Error updating session counter:", error);
-    }
-  };
-
-  const showWarning = (message) => {
-    setViolationWarning(message);
-    setShowViolationWarning(true);
-    setTimeout(() => {
-      setShowViolationWarning(false);
-    }, 4000);
   };
 
   // Initial load: fetch problem, languages, testcases, solved
