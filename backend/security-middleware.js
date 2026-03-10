@@ -29,6 +29,7 @@ export const strictRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Suppress all validations
   // Use IP + user ID for more precise limiting
   keyGenerator: (req) => {
     return `${req.ip}-${req.user?.userid || "anonymous"}`;
@@ -57,6 +58,7 @@ export const proctoringRateLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Suppress all validations
   keyGenerator: (req) => {
     return `proctoring-${req.ip}-${req.user?.userid || "anonymous"}`;
   },
@@ -91,6 +93,7 @@ export const standardRateLimiter = rateLimit({
   message: { error: "Too many requests from this IP, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false, // Suppress all validations
   keyGenerator: (req) => {
     return `${req.ip}-${req.user?.userid || "anonymous"}`;
   },
@@ -103,8 +106,12 @@ export const standardRateLimiter = rateLimit({
 export const speedLimiter = slowDown({
   windowMs: 60 * 1000, // 1 minute
   delayAfter: 5, // Allow 5 requests per minute at full speed
-  delayMs: 500, // Add 500ms delay per request after delayAfter
+  delayMs: (used, req) => {
+    const delayAfter = req.slowDown.limit;
+    return (used - delayAfter) * 500;
+  },
   maxDelayMs: 10000, // Maximum delay of 10 seconds
+  validate: false, // Suppress all validations
   keyGenerator: (req) => {
     return `speed-${req.ip}-${req.user?.userid || "anonymous"}`;
   },

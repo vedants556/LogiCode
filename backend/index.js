@@ -91,108 +91,55 @@ Object.keys(process.env)
 
 let dbConfig;
 
-if (process.env.DATABASE_URL) {
+// Prioritize local development variables first, then fallback to URLs
+if (process.env.MYSQLHOST && !process.env.MYSQLHOST.includes("railway")) {
+  console.log("📡 Using Local MySQL environment variables");
+  dbConfig = {
+    host: process.env.MYSQLHOST || "localhost",
+    user: process.env.MYSQLUSER || "root",
+    password: process.env.MYSQLPASSWORD || process.env.SQL_PASSWORD,
+    database:
+      process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE || "railway",
+    port: process.env.MYSQLPORT || 3306,
+  };
+} else if (process.env.DATABASE_URL) {
   console.log("📡 Using DATABASE_URL for database connection");
-  // Railway provides DATABASE_URL in format: mysql://user:password@host:port/database
   const url = new URL(process.env.DATABASE_URL);
   dbConfig = {
     host: url.hostname,
     user: url.username,
     password: url.password,
-    database: url.pathname.slice(1), // Remove leading slash
+    database: url.pathname.slice(1),
     port: url.port || 3306,
+    ssl: { rejectUnauthorized: false },
   };
 } else {
-  console.log(
-    "📡 Using Railway MySQL environment variables for database connection"
-  );
-
-  // Try different MySQL URL formats in order of preference
   const mysqlUrl = process.env.MYSQL_PUBLIC_URL || process.env.MYSQL_URL;
-
-  if (mysqlUrl) {
+  if (mysqlUrl && !mysqlUrl.includes("localhost")) {
     console.log("📡 Using MySQL URL for database connection");
-
-    // Check if URL contains template variables
-    const resolvedUrl = resolveRailwayTemplate(mysqlUrl);
-    if (resolvedUrl === null) {
-      console.log(
-        "❌ Railway template variables detected in MySQL URL. Cannot connect to database."
-      );
-      console.log(
-        "💡 Please set up your local .env file with actual database credentials."
-      );
-      process.exit(1);
-    }
-
     try {
-      const url = new URL(resolvedUrl);
+      const url = new URL(mysqlUrl);
       dbConfig = {
         host: url.hostname,
         user: url.username,
         password: url.password,
-        database: url.pathname.slice(1), // Remove leading slash
+        database: url.pathname.slice(1),
         port: url.port || 3306,
+        ssl: { rejectUnauthorized: false },
       };
-    } catch (error) {
-      console.log(
-        "❌ Failed to parse MySQL URL, falling back to individual variables"
-      );
-
-      // Resolve template variables for individual variables too
-      const resolvedHost = resolveRailwayTemplate(process.env.MYSQLHOST);
-      const resolvedDatabase = resolveRailwayTemplate(
-        process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE
-      );
-
-      if (resolvedHost === null || resolvedDatabase === null) {
-        console.log(
-          "❌ Railway template variables detected. Cannot connect to database."
-        );
-        console.log(
-          "💡 Please set up your local .env file with actual database credentials."
-        );
-        process.exit(1);
-      }
-
-      dbConfig = {
-        host: resolvedHost || "localhost",
-        user: process.env.MYSQLUSER || "root",
-        password: process.env.MYSQLPASSWORD,
-        database: resolvedDatabase || "codesync",
-        port: process.env.MYSQLPORT || 3306,
-      };
+    } catch (e) {
+      console.error("❌ Failed to parse MySQL URL:", e.message);
     }
-  } else {
-    // Use Railway MySQL environment variables
-    console.log("📡 Using individual MySQL environment variables");
+  }
 
-    // Resolve template variables
-    const resolvedHost = resolveRailwayTemplate(process.env.MYSQLHOST);
-    const resolvedDatabase = resolveRailwayTemplate(
-      process.env.MYSQL_DATABASE || process.env.MYSQLDATABASE
-    );
-
-    // Check if we have template variables
-    if (resolvedHost === null || resolvedDatabase === null) {
-      console.log(
-        "❌ Railway template variables detected. Cannot connect to database."
-      );
-      console.log(
-        "💡 Please set up your local .env file with actual database credentials."
-      );
-      console.log(
-        "💡 Or use Railway CLI to get the actual connection details."
-      );
-      process.exit(1);
-    }
-
+  // Final fallback to defaults if nothing else worked
+  if (!dbConfig) {
     dbConfig = {
-      host: resolvedHost || "localhost",
-      user: process.env.MYSQLUSER || "root",
-      password: process.env.MYSQLPASSWORD,
-      database: resolvedDatabase || "codesync",
-      port: process.env.MYSQLPORT || 3306,
+      host: "localhost",
+      user: "root",
+      password: process.env.SQL_PASSWORD || "",
+      database: "railway",
+      port: 3306,
     };
   }
 }
@@ -204,10 +151,18 @@ console.log("🗄️ Database config:", {
   port: dbConfig.port,
 });
 
-const db = mysql2.createConnection(dbConfig);
+const db = mysql2.createPool({
+  ...dbConfig,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
+  connectTimeout: 30000,
+});
 
-// Handle database connection errors
-db.connect((err) => {
+// Test database connection on startup
+db.getConnection((err, connection) => {
   if (err) {
     console.error("❌ Database connection failed:", err.message);
     console.error("Error code:", err.code);
@@ -237,19 +192,17 @@ db.connect((err) => {
 
     process.exit(1);
   } else {
-    console.log("✅ Database connected successfully");
+    console.log("✅ Database connected successfully via pool");
     console.log("Connected to database:", dbConfig.database);
+    connection.release(); // Release the test connection back to the pool
   }
 });
 
-// Handle database disconnection
+// Monitor pool for errors
 db.on("error", (err) => {
-  console.error("Database error:", err);
+  console.error("Database pool error:", err);
   if (err.code === "PROTOCOL_CONNECTION_LOST") {
-    console.log("Attempting to reconnect to database...");
-    db.connect();
-  } else {
-    throw err;
+    console.log("Database connection lost. Pool will handle reconnection.");
   }
 });
 
@@ -936,15 +889,15 @@ app.post(
         avgMetrics = {
           avg_cpu_time: Math.round(
             performanceMetrics.reduce((sum, m) => sum + m.cpu_time, 0) /
-              performanceMetrics.length
+            performanceMetrics.length
           ),
           avg_wall_time: Math.round(
             performanceMetrics.reduce((sum, m) => sum + m.wall_time, 0) /
-              performanceMetrics.length
+            performanceMetrics.length
           ),
           avg_memory: Math.round(
             performanceMetrics.reduce((sum, m) => sum + m.memory, 0) /
-              performanceMetrics.length
+            performanceMetrics.length
           ),
           max_memory: Math.max(...performanceMetrics.map((m) => m.memory)),
           total_time: performanceMetrics.reduce(
